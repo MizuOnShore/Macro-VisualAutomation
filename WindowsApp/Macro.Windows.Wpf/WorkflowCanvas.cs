@@ -46,6 +46,12 @@ internal sealed class WorkflowCanvas : FrameworkElement
         InvalidateVisual();
     }
 
+    public void FitForCapture(double width, double height)
+    {
+        Fit(width, height);
+        fitOnResize = false;
+    }
+
     public void ZoomBy(double factor)
     {
         fitOnResize = false;

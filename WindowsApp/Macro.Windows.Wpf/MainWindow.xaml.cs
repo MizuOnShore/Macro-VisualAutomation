@@ -182,7 +182,7 @@ public partial class MainWindow : Window
     internal void FitCanvasForCapture(double width, double height)
     {
         var canvasWidth = width - SidebarColumn.Width.Value - AutomationLibraryColumn.Width.Value - AutomationInspectorColumn.Width.Value;
-        FlowCanvas.Fit(canvasWidth, height - 116);
+        FlowCanvas.FitForCapture(canvasWidth, height - 116);
     }
 
     private void FitWindowToWorkArea()
