@@ -618,13 +618,13 @@
           </Grid.ColumnDefinitions>
           <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#091A29" BorderBrush="#17364E" BorderThickness="0,0,0,1" Padding="10">
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <Button x:Name="AutomationLibraryToggle" Click="ToggleAutomationLibrary" Padding="8,6" ToolTip="Show or hide workflow library">◧</Button>
+              <Button x:Name="AutomationLibraryToggle" Click="ToggleAutomationLibrary" Padding="8,6" ToolTip="Show or hide the workflow library">◧</Button>
               <Border Grid.Column="1" Width="30" Height="30" CornerRadius="8" Background="#0C2A45" Margin="8,0"><TextBlock Text="◇" Foreground="#4C9CFF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
               <StackPanel Grid.Column="2" VerticalAlignment="Center"><TextBlock x:Name="AutomationToolbarTitle" Text="Automation" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="AutomationToolbarMeta" Text="0 nodes · 0 connections" Foreground="{StaticResource SecondaryBrush}" FontSize="10"/></StackPanel>
               <Button Grid.Column="3" Click="SaveAutomation" Padding="10,6" Margin="0,0,7,0">⇩  Save</Button>
               <Button Grid.Column="4" Style="{StaticResource PrimaryButton}" Click="RunAutomation" Padding="13,6" Margin="0,0,7,0">▶  Run</Button>
               <Button Grid.Column="5" Click="FitWorkflow" Padding="10,6">Fit</Button>
-              <Button x:Name="AutomationInspectorToggle" Grid.Column="6" Click="ToggleAutomationInspector" Padding="8,6" Margin="7,0,0,0" ToolTip="Show or hide automation settings">◨</Button>
+              <Button x:Name="AutomationInspectorToggle" Grid.Column="6" Click="ToggleAutomationInspector" Padding="8,6" Margin="7,0,0,0" ToolTip="Show or hide the automation inspector">◨</Button>
             </Grid>
           </Border>
           <Border x:Name="AutomationLibraryPanel" Grid.Row="1" Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="13">

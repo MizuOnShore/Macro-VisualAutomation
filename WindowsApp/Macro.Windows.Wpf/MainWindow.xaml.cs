@@ -1469,6 +1469,10 @@ public partial class MainWindow : Window
         ApplyLayout(ActualWidth);
         AutomationLibraryToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(libraryOpen ? "#183A5B" : "#121F2D"));
         AutomationInspectorToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(inspectorOpen ? "#183A5B" : "#121F2D"));
+        AutomationLibraryToggle.Content = libraryOpen ? "◧" : "◨";
+        AutomationLibraryToggle.ToolTip = libraryOpen ? "Hide workflow library" : "Show workflow library";
+        AutomationInspectorToggle.Content = inspectorOpen ? "◨" : "◧";
+        AutomationInspectorToggle.ToolTip = inspectorOpen ? "Hide automation inspector" : "Show automation inspector";
         FlowCanvas.Fit();
     }
     private void CanvasZoomOut(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(.85); UpdateCanvasZoom(); }
