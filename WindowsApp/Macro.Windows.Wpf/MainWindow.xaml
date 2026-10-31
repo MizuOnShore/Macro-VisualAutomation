@@ -302,10 +302,11 @@
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
               <DockPanel Margin="2,0,2,12">
-                <TextBlock Text="MACRO LIBRARY" Style="{StaticResource Section}"/>
+                <TextBlock Text="YOUR WORKSPACE" Style="{StaticResource Section}"/>
                 <Border DockPanel.Dock="Right" Background="#153753" CornerRadius="10" Padding="8,3">
                   <TextBlock x:Name="MacroCount" Text="0" FontSize="11"/>
                 </Border>
+                <Button DockPanel.Dock="Right" Tag="Recorder" Click="Navigate" Padding="8,4" Margin="0,0,7,0">Record</Button>
               </DockPanel>
               <TextBox x:Name="MacroSearch" Grid.Row="1" TextChanged="MacroSearchChanged" Margin="0,0,0,12" ToolTip="Search macros"/>
               <ListBox x:Name="MacroList" Grid.Row="2" SelectionChanged="MacroSelected">
@@ -322,6 +323,7 @@
                       <StackPanel Grid.Column="1">
                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{Binding Actions.Count, StringFormat={}{0} actions}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
+                        <TextBlock Text="{Binding MousePlaybackMode}" Foreground="#6F94B2" FontSize="10"/>
                       </StackPanel>
                     </Grid>
                   </DataTemplate>
@@ -363,7 +365,21 @@
                 </Grid>
               </Grid>
             </Border>
-            <ListBox x:Name="ActionList" Grid.Row="2" SelectionChanged="ActionSelected">
+            <Border x:Name="MacroOverviewCard" Grid.Row="2" Style="{StaticResource Card}" Padding="18" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Text="RECORDING OVERVIEW" Style="{StaticResource Section}"/>
+                <TextBlock x:Name="OverviewTitle" Text="Select a macro" FontSize="23" FontWeight="Bold"/>
+                <TextBlock x:Name="OverviewTarget" Text="No target selected" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,16"/>
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                  <StackPanel><TextBlock Text="ACTIONS" Style="{StaticResource Section}"/><TextBlock x:Name="OverviewCount" Text="0" FontSize="19" FontWeight="SemiBold"/></StackPanel>
+                  <StackPanel Grid.Column="1"><TextBlock Text="PLAYBACK" Style="{StaticResource Section}"/><TextBlock x:Name="OverviewMode" Text="Once" FontSize="15" FontWeight="SemiBold"/></StackPanel>
+                  <StackPanel Grid.Column="2"><TextBlock Text="INPUT" Style="{StaticResource Section}"/><TextBlock x:Name="OverviewInput" Text="Background" FontSize="15" FontWeight="SemiBold"/></StackPanel>
+                </Grid>
+                <Button x:Name="EditActionsButton" Style="{StaticResource PrimaryButton}" Click="EditActions" Margin="0,20,0,0" HorizontalAlignment="Left">Edit Actions</Button>
+              </StackPanel>
+            </Border>
+            <ListBox x:Name="ActionList" Grid.Row="2" Visibility="Collapsed" SelectionChanged="ActionSelected">
               <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                   <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="0"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -402,7 +418,8 @@
             </Grid>
           </Grid>
           <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid>
+            <ScrollViewer x:Name="ActionInspectorScroll" VerticalScrollBarVisibility="Auto">
               <StackPanel x:Name="ActionInspector">
                 <TextBlock Text="ACTION INSPECTOR" Style="{StaticResource Section}"/>
                 <TextBlock x:Name="ActionInspectorTitle" Text="Select an action" FontSize="20" FontWeight="Bold" Margin="0,0,0,18"/>
@@ -445,6 +462,13 @@
                 <Button Style="{StaticResource DangerButton}" Click="DeleteMacro" Margin="0,24,0,0">Delete Macro</Button>
               </StackPanel>
             </ScrollViewer>
+            <StackPanel x:Name="MacroInspectorOverview" Visibility="Collapsed">
+              <TextBlock Text="MACRO DETAILS" Style="{StaticResource Section}"/>
+              <TextBlock Text="Overview" FontSize="20" FontWeight="Bold" Margin="0,0,0,18"/>
+              <Border Style="{StaticResource Card}" Padding="13"><StackPanel><TextBlock Text="Target" Style="{StaticResource Section}"/><TextBlock x:Name="InspectorTarget" Text="No target selected" FontWeight="SemiBold" TextWrapping="Wrap"/><Separator Margin="0,12"/><TextBlock Text="Playback mode" Style="{StaticResource Section}"/><TextBlock x:Name="InspectorPlayback" Text="Background" FontWeight="SemiBold"/><Separator Margin="0,12"/><TextBlock Text="Actions" Style="{StaticResource Section}"/><TextBlock x:Name="InspectorActions" Text="0" FontSize="18" FontWeight="SemiBold"/></StackPanel></Border>
+              <Button Style="{StaticResource PrimaryButton}" Click="EditActions" Margin="0,16,0,0">Edit Actions</Button>
+            </StackPanel>
+            </Grid>
           </Border>
         </Grid>
         <!-- RECORDER -->
@@ -467,6 +491,7 @@
                   <TextBlock x:Name="RecordState" Text="READY TO RECORD" Foreground="#EF4053" FontSize="11" FontWeight="Bold"/>
                   <TextBlock x:Name="RecordTitle" Text="Create the next sequence" FontSize="26" FontWeight="Bold" Margin="0,7"/>
                   <TextBlock x:Name="RecordDescription" Text="Start here, switch to your target window, and perform the keyboard and mouse actions you want to replay." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
+                  <UniformGrid Columns="3" Margin="0,14,0,0"><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="0,0,5,0"><StackPanel><TextBlock Text="KEYBOARD" Style="{StaticResource Section}"/><TextBlock Text="Global hook" FontSize="11"/></StackPanel></Border><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="3,0"><StackPanel><TextBlock Text="MOUSE" Style="{StaticResource Section}"/><TextBlock Text="Global hook" FontSize="11"/></StackPanel></Border><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="5,0,0,0"><StackPanel><TextBlock Text="TARGET" Style="{StaticResource Section}"/><TextBlock x:Name="RecorderModeText" Text="No target" FontSize="11" TextTrimming="CharacterEllipsis"/></StackPanel></Border></UniformGrid>
                   <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
                     <Button x:Name="RecordMainButton" Style="{StaticResource PrimaryButton}" Click="RecordClicked">&#x25CF;  Start Recording</Button>
                     <Border Background="#153753" CornerRadius="7" Padding="10,7" Margin="10,0,0,0">
@@ -514,6 +539,7 @@
             <Grid>
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
@@ -521,7 +547,9 @@
                 <TextBlock Text="AVAILABLE WINDOWS" Style="{StaticResource Section}"/>
                 <Button DockPanel.Dock="Right" Click="RefreshTargets" Padding="10,5">&#x21BB; Refresh</Button>
               </DockPanel>
-              <ListBox x:Name="TargetList" Grid.Row="1" SelectionChanged="TargetSelectionChanged">
+              <TextBox x:Name="TargetSearch" Grid.Row="1" Margin="0,0,0,10" TextChanged="TargetSearchChanged" ToolTip="Search windows"/>
+              <Grid Grid.Row="2">
+              <ListBox x:Name="TargetList" SelectionChanged="TargetSelectionChanged">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel>
@@ -532,7 +560,12 @@
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
-              <Button Grid.Row="2" Style="{StaticResource PrimaryButton}" Click="SelectTarget" Margin="0,12,0,0">Select Highlighted Window</Button>
+              <StackPanel x:Name="TargetEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock Text="No matching windows" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Refresh or clear the search to find a target." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,5,0,0"/>
+              </StackPanel>
+              </Grid>
+              <Grid Grid.Row="3" Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Button Style="{StaticResource PrimaryButton}" Click="SelectTarget" Margin="0,0,4,0">Select Window</Button><Button Grid.Column="1" Click="ClearTarget" Margin="4,0,0,0">Clear Target</Button></Grid>
             </Grid>
           </Border>
           <StackPanel Grid.Column="1" Margin="28" MaxWidth="660" HorizontalAlignment="Stretch">
@@ -541,6 +574,7 @@
             <TextBlock x:Name="TargetSubtitle" Text="Choose a visible application window to receive the macro." Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,20"/>
             <Border Style="{StaticResource Card}">
               <StackPanel>
+                <TextBlock Text="SELECTED TARGET" Style="{StaticResource Section}"/>
                 <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="17"/>
                 <TextBlock Text="Post a harmless test event before running a sequence. Posted does not guarantee the application consumed it." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,14"/>
                 <StackPanel Orientation="Horizontal">
@@ -600,6 +634,10 @@
               <StackPanel>
                 <TextBlock Text="INSPECTOR" Style="{StaticResource Section}"/>
                 <TextBox x:Name="AutomationName" FontSize="20" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="AutomationNameChanged" Margin="0,0,0,14"/>
+                <TextBlock Text="DESCRIPTION" Style="{StaticResource Section}"/>
+                <TextBox x:Name="AutomationDescription" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" TextChanged="AutomationDescriptionChanged" Margin="0,0,0,12"/>
+                <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions><TextBlock Text="Start mode" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><ComboBox x:Name="StartModeBox" Grid.Column="1" SelectionChanged="AutomationStartModeChanged"/></Grid>
+                <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,16"><StackPanel><TextBlock Text="WORKFLOW STATUS" Style="{StaticResource Section}"/><TextBlock x:Name="AutomationSummary" Text="0 nodes · 0 connections" FontWeight="SemiBold"/><TextBlock Text="Validation is updated as you edit the workflow." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border>
                 <TextBlock x:Name="NodeInspectorTitle" Text="Select a node" FontSize="17" FontWeight="SemiBold"/>
                 <TextBlock x:Name="NodeKindText" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,14"/>
                 <StackPanel x:Name="MacroNodeFields">
@@ -644,9 +682,33 @@
               <TextBlock Text="ACTIVITY" Style="{StaticResource Section}"/>
               <TextBlock Text="Logs" FontSize="30" FontWeight="Bold"/>
             </StackPanel>
-            <Button DockPanel.Dock="Right" Click="ClearLogs">Clear</Button>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+              <TextBox x:Name="LogSearch" Width="180" Margin="0,0,8,0" TextChanged="LogSearchChanged" ToolTip="Search logs"/>
+              <Button Click="ClearLogs">Clear</Button>
+            </StackPanel>
           </DockPanel>
-          <TextBox x:Name="LogBox" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Cascadia Mono, Consolas" FontSize="12" Padding="16"/>
+          <ListBox x:Name="LogList" Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,7"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource Card}" Padding="12,10">
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="12"/><ColumnDefinition Width="74"/><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Ellipse Width="7" Height="7" Fill="{Binding Accent}" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Time}" Foreground="{StaticResource SecondaryBrush}" FontFamily="Consolas" FontSize="11"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Level}" Foreground="{Binding Accent}" FontWeight="SemiBold" FontSize="11"/>
+                    <StackPanel Grid.Column="3"><TextBlock Text="{Binding Message}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding Detail}" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel x:Name="LogEmptyState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+            <TextBlock Text="No logs yet" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Run a macro or automation to see activity here." Foreground="{StaticResource SecondaryBrush}" Margin="0,6,0,0"/>
+          </StackPanel>
         </Grid>
         <!-- SETTINGS -->
         <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed">
@@ -654,6 +716,13 @@
             <TextBlock Text="PREFERENCES" Style="{StaticResource Section}"/>
             <TextBlock Text="Settings" FontSize="34" FontWeight="Bold"/>
             <TextBlock Text="Global controls and Windows input behavior" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,22"/>
+            <TextBlock Text="GENERAL" Style="{StaticResource Section}" Margin="0,0,0,8"/>
+            <Border Style="{StaticResource Card}">
+              <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Appearance" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Dark navy theme · follows the Macro design system" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0"/></StackPanel><Border Grid.Column="1" Background="#153753" CornerRadius="8" Padding="10,6"><TextBlock Text="Dark"/></Border></Grid>
+            </Border>
+            <TextBlock Text="RECORDING" Style="{StaticResource Section}" Margin="0,18,0,8"/>
+            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Global recording controls" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Keyboard and mouse hooks · 3-second countdown · F6 to record · F7 to stop" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/></StackPanel></Border>
+            <TextBlock Text="PLAYBACK" Style="{StaticResource Section}" Margin="0,18,0,8"/>
             <Border Style="{StaticResource Card}">
               <StackPanel>
                 <TextBlock Text="Global hotkeys" FontSize="18" FontWeight="SemiBold"/>
@@ -671,6 +740,10 @@
                 </UniformGrid>
               </StackPanel>
             </Border>
+            <TextBlock Text="TARGET" Style="{StaticResource Section}" Margin="0,18,0,8"/>
+            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Window matching" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Visible top-level windows · process-name matching · selected target stays visible in the sidebar" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/></StackPanel></Border>
+            <TextBlock Text="PERMISSIONS &amp; SAFETY" Style="{StaticResource Section}" Margin="0,18,0,8"/>
+            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Windows input permissions" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Macro uses standard Windows hooks, window messages, and SendInput. Run Macro at the same integrity level as elevated targets." Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/><Border Background="#2B2415" BorderBrush="#6A5122" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,12,0,0"><TextBlock Text="Emergency stop: F7 · Stop always releases held inputs." Foreground="#F4C66A" TextWrapping="Wrap"/></Border></StackPanel></Border>
             <Border Style="{StaticResource Card}" Margin="0,14,0,0">
               <StackPanel>
                 <TextBlock Text="Playback modes" FontSize="18" FontWeight="SemiBold"/>

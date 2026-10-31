@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
     private readonly MacroRunner macroRunner = new();
     private readonly AutomationRunner automationRunner = new();
     private readonly WindowsRecorder recorder = new();
+    private readonly ObservableCollection<UiLogEntry> logEntries = [];
     private List<MacroDefinition> macros;
     private List<AutomationDefinition> automations;
     private List<TargetWindow> targets = [];
@@ -30,6 +32,16 @@ public partial class MainWindow : Window
     private CancellationTokenSource? recordingCountdown;
     private HwndSource? windowSource;
     private bool loading;
+    private bool actionEditing;
+
+    private sealed class UiLogEntry
+    {
+        public string Time { get; init; } = "";
+        public string Level { get; init; } = "Info";
+        public string Message { get; init; } = "";
+        public string Detail { get; init; } = "";
+        public string Accent { get; init; } = "#6E8498";
+    }
 
     private MacroDefinition? SelectedMacro => MacroList.SelectedItem as MacroDefinition;
     private AutomationDefinition? SelectedAutomation => AutomationList.SelectedItem as AutomationDefinition;
@@ -38,12 +50,15 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        LogList.ItemsSource = logEntries;
+        UpdateLogEmptyState();
         Directory.CreateDirectory(storage.DirectoryPath);
         macros = SafeLoad(storage.LoadMacros, [MacroDefinition.Example()]);
         automations = SafeLoad(storage.LoadAutomations, [AutomationDefinition.Blank()]);
 
         LoopModeBox.ItemsSource = Enum.GetValues<LoopMode>();
         PlaybackModeBox.ItemsSource = Enum.GetValues<MousePlaybackMode>();
+        StartModeBox.ItemsSource = Enum.GetValues<Macro.Core.AutomationStartMode>();
         AddActionBox.ItemsSource = Enum.GetValues<MacroActionType>();
         ActionTypeBox.ItemsSource = Enum.GetValues<MacroActionType>();
         NodeBranch.ItemsSource = new[] { "Normal", "Yes", "No" };
@@ -239,7 +254,11 @@ public partial class MainWindow : Window
 
     private void MacroSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (!loading) LoadSelectedMacro();
+        if (!loading)
+        {
+            actionEditing = false;
+            LoadSelectedMacro();
+        }
     }
 
     private void LoadSelectedMacro()
@@ -253,6 +272,15 @@ public partial class MainWindow : Window
         ActionList.ItemsSource = null;
         ActionList.ItemsSource = macro?.Actions;
         ActionList.SelectedIndex = macro?.Actions.Count > 0 ? 0 : -1;
+        OverviewTitle.Text = macro?.Name ?? "Select a macro";
+        OverviewTarget.Text = macro is null ? "Create or select a macro to begin" : macro.TargetBundleIdentifier is null ? "No target selected" : macro.TargetBundleIdentifier;
+        OverviewCount.Text = (macro?.Actions.Count ?? 0).ToString(CultureInfo.InvariantCulture);
+        OverviewMode.Text = macro?.LoopMode.ToString() ?? "Once";
+        OverviewInput.Text = macro?.MousePlaybackMode.ToString() ?? "Background";
+        InspectorTarget.Text = OverviewTarget.Text;
+        InspectorPlayback.Text = OverviewInput.Text;
+        InspectorActions.Text = OverviewCount.Text;
+        SetActionEditor(actionEditing);
         loading = false;
         LoadSelectedAction();
     }
@@ -261,6 +289,7 @@ public partial class MainWindow : Window
     {
         if (loading || SelectedMacro is not { } macro) return;
         macro.Name = string.IsNullOrWhiteSpace(MacroName.Text) ? "Untitled Macro" : MacroName.Text;
+        OverviewTitle.Text = macro.Name;
         MacroList.Items.Refresh();
         SaveAll();
     }
@@ -271,7 +300,21 @@ public partial class MainWindow : Window
         if (LoopModeBox.SelectedItem is LoopMode loop) macro.LoopMode = loop;
         if (int.TryParse(LoopCountBox.Text, out var count)) macro.LoopCount = Math.Clamp(count, 1, 1_000_000);
         if (PlaybackModeBox.SelectedItem is MousePlaybackMode mode) macro.MousePlaybackMode = mode;
+        OverviewMode.Text = macro.LoopMode.ToString();
+        OverviewInput.Text = macro.MousePlaybackMode.ToString();
+        InspectorPlayback.Text = OverviewInput.Text;
         SaveAll();
+    }
+
+    private void EditActions(object sender, RoutedEventArgs e) => SetActionEditor(true);
+
+    private void SetActionEditor(bool editing)
+    {
+        actionEditing = editing;
+        MacroOverviewCard.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        ActionList.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        MacroInspectorOverview.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        ActionInspectorScroll.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ActionSelected(object sender, SelectionChangedEventArgs e)
@@ -397,6 +440,8 @@ public partial class MainWindow : Window
         if (select is not null) ActionList.SelectedItem = select;
         else if (ActionList.Items.Count > 0) ActionList.SelectedIndex = Math.Min(ActionList.Items.Count - 1, Math.Max(0, ActionList.SelectedIndex));
         LoadSelectedAction();
+        OverviewCount.Text = (SelectedMacro?.Actions.Count ?? 0).ToString(CultureInfo.InvariantCulture);
+        InspectorActions.Text = OverviewCount.Text;
     }
 
     private void NewMacro(object sender, RoutedEventArgs e)
@@ -549,10 +594,25 @@ public partial class MainWindow : Window
     {
         var previous = selectedTarget;
         targets = targetService.Discover().ToList();
-        TargetList.ItemsSource = targets;
+        ApplyTargetFilter();
         if (previous is not null)
             TargetList.SelectedItem = targets.FirstOrDefault(t => t.Handle == previous.Handle);
         Log($"Found {targets.Count} visible windows");
+    }
+
+    private void TargetSearchChanged(object sender, TextChangedEventArgs e) => ApplyTargetFilter();
+
+    private void ApplyTargetFilter()
+    {
+        var query = TargetSearch.Text.Trim();
+        var filtered = string.IsNullOrWhiteSpace(query)
+            ? targets
+            : targets.Where(target => target.ApplicationName.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || target.WindowTitle.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || (target.ProcessName?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false)
+                || target.ProcessId.ToString(CultureInfo.InvariantCulture).Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+        TargetList.ItemsSource = filtered;
+        TargetEmptyState.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void TargetSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -568,14 +628,33 @@ public partial class MainWindow : Window
         if (TargetList.SelectedItem is not TargetWindow target) return;
         selectedTarget = target;
         if (SelectedMacro is { } macro) macro.TargetBundleIdentifier = target.ProcessName;
+        OverviewTarget.Text = target.ApplicationName;
+        InspectorTarget.Text = target.ApplicationName;
         SidebarTarget.Text = target.ApplicationName;
         SidebarTargetSub.Text = target.WindowTitle;
         RecorderTarget.Text = "◎  " + target.ApplicationName;
+        RecorderModeText.Text = target.ApplicationName;
         TargetTitle.Text = target.ApplicationName;
         TargetSubtitle.Text = target.WindowTitle;
         DiagnosticText.Text = $"Selected · PID {target.ProcessId} · {target.Width} × {target.Height}";
         Log("Target selected: " + target);
         SaveAll();
+    }
+
+    private void ClearTarget(object sender, RoutedEventArgs e)
+    {
+        selectedTarget = null;
+        TargetList.SelectedItem = null;
+        TargetTitle.Text = "No target selected";
+        TargetSubtitle.Text = "Choose a visible application window to receive the macro.";
+        DiagnosticText.Text = "";
+        SidebarTarget.Text = "No target";
+        SidebarTargetSub.Text = "Choose a window";
+        RecorderTarget.Text = "◎  No target selected";
+        RecorderModeText.Text = "No target";
+        OverviewTarget.Text = "No target selected";
+        InspectorTarget.Text = "No target selected";
+        Log("Target cleared");
     }
 
     private void TestKey(object sender, RoutedEventArgs e)
@@ -642,6 +721,8 @@ public partial class MainWindow : Window
     {
         loading = true;
         AutomationName.Text = SelectedAutomation?.Name ?? "";
+        AutomationDescription.Text = SelectedAutomation?.AutomationDescription ?? "";
+        StartModeBox.SelectedItem = SelectedAutomation?.StartMode ?? Macro.Core.AutomationStartMode.Immediately;
         FlowCanvas.Workflow = SelectedAutomation;
         selectedNode = null;
         loading = false;
@@ -652,6 +733,7 @@ public partial class MainWindow : Window
     private void RefreshAutomationDetail()
     {
         var automation = SelectedAutomation;
+        AutomationSummary.Text = automation is null ? "0 nodes · 0 connections" : $"{automation.Nodes.Count} nodes · {automation.Connections.Count} connections";
         NodeConnectTarget.ItemsSource = automation?.Nodes.Where(node => node.Id != selectedNode?.Id).ToList();
         NodeConnectTarget.DisplayMemberPath = nameof(AutomationNode.Title);
         var errors = automation?.Validate(macros.Select(m => m.Id).ToHashSet()) ?? [];
@@ -795,6 +877,22 @@ public partial class MainWindow : Window
         automation.Name = string.IsNullOrWhiteSpace(AutomationName.Text) ? "Untitled Automation" : AutomationName.Text;
         automation.LastEdited = CocoaNow();
         AutomationList.Items.Refresh();
+        SaveAll();
+    }
+
+    private void AutomationDescriptionChanged(object sender, TextChangedEventArgs e)
+    {
+        if (loading || SelectedAutomation is not { } automation) return;
+        automation.AutomationDescription = AutomationDescription.Text;
+        automation.LastEdited = CocoaNow();
+        SaveAll();
+    }
+
+    private void AutomationStartModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (loading || SelectedAutomation is not { } automation || StartModeBox.SelectedItem is not Macro.Core.AutomationStartMode mode) return;
+        automation.StartMode = mode;
+        automation.LastEdited = CocoaNow();
         SaveAll();
     }
 
@@ -955,7 +1053,23 @@ public partial class MainWindow : Window
         SaveAll();
     }
 
-    private void ClearLogs(object sender, RoutedEventArgs e) => LogBox.Clear();
+    private void LogSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        var query = LogSearch.Text.Trim();
+        LogList.ItemsSource = string.IsNullOrWhiteSpace(query)
+            ? logEntries
+            : logEntries.Where(entry => entry.Message.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || entry.Detail.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || entry.Level.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        UpdateLogEmptyState();
+    }
+
+    private void ClearLogs(object sender, RoutedEventArgs e)
+    {
+        logEntries.Clear();
+        LogList.ItemsSource = logEntries;
+        UpdateLogEmptyState();
+    }
     private void OpenDataFolder(object sender, RoutedEventArgs e)
     {
         Directory.CreateDirectory(storage.DirectoryPath);
@@ -978,9 +1092,26 @@ public partial class MainWindow : Window
 
     private void Log(string message, string level = "info")
     {
-        LogBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {level.ToUpperInvariant(),-7} {message}{Environment.NewLine}");
-        LogBox.ScrollToEnd();
+        var normalized = level.ToLowerInvariant();
+        var (label, accent) = normalized switch
+        {
+            "error" => ("Error", "#F06A79"),
+            "warning" => ("Warning", "#F4A340"),
+            _ => ("System", "#4C9CFF")
+        };
+        logEntries.Add(new UiLogEntry
+        {
+            Time = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+            Level = label,
+            Message = message,
+            Detail = normalized == "error" ? "Action required" : "Macro activity",
+            Accent = accent
+        });
+        if (string.IsNullOrWhiteSpace(LogSearch.Text)) LogList.ScrollIntoView(logEntries.Last());
+        UpdateLogEmptyState();
     }
+
+    private void UpdateLogEmptyState() => LogEmptyState.Visibility = LogList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
     private void Ui(Action action)
     {
