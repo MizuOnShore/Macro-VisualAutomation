@@ -26,6 +26,8 @@ internal sealed class WorkflowCanvas : FrameworkElement
     public event Action? WorkflowChanged;
     public Func<Guid?, string>? MacroDetailResolver { get; set; }
     public Func<Guid?, string>? MacroTitleResolver { get; set; }
+    public Color CanvasColor { get; set; } = C("07111C");
+    public Color GridColor { get; set; } = C("406384");
 
     public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; Fit(); InvalidateVisual(); } }
     public Guid? SelectedNodeId { get => selectedNodeId; set { selectedNodeId = value; InvalidateVisual(); } }
@@ -74,7 +76,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     protected override void OnRender(DrawingContext dc)
     {
-        dc.DrawRectangle(new SolidColorBrush(C("07111C")), null, new Rect(RenderSize));
+        dc.DrawRectangle(new SolidColorBrush(CanvasColor), null, new Rect(RenderSize));
         DrawGrid(dc); if (workflow is null) { DrawEmpty(dc); return; }
         dc.PushTransform(new TranslateTransform(pan.X, pan.Y)); dc.PushTransform(new ScaleTransform(zoom, zoom));
         foreach (var section in workflow.Sections)
@@ -91,7 +93,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     private void DrawGrid(DrawingContext dc)
     {
-        var brush = new SolidColorBrush(Color.FromArgb(38, 64, 99, 132));
+        var brush = new SolidColorBrush(Color.FromArgb(38, GridColor.R, GridColor.G, GridColor.B));
         for (double x = pan.X % (28 * zoom); x < ActualWidth; x += 28 * zoom)
             for (double y = pan.Y % (28 * zoom); y < ActualHeight; y += 28 * zoom) dc.DrawEllipse(brush, null, new Point(x, y), 1, 1);
     }

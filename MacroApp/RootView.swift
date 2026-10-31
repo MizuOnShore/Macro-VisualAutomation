@@ -3,27 +3,42 @@ import AppKit
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var sidebarVisible = true
 
     var body: some View {
-        NavigationSplitView {
-            VStack(spacing: 0) {
-                brandHeader
-                Divider().opacity(0.55)
+        HStack(spacing: 0) {
+            GeometryReader { sidebarGeometry in
+                let compact = sidebarGeometry.size.height < 600
+                VStack(spacing: 0) {
+                    brandHeader(compact: compact)
+                    Divider().opacity(0.55)
 
-                List(SidebarDestination.allCases, selection: $model.destination) { destination in
-                    Label(destination.rawValue, systemImage: destination.symbol)
-                        .font(.body.weight(model.destination == destination ? .semibold : .regular))
-                        .padding(.vertical, 4)
-                        .tag(destination)
+                    List(SidebarDestination.allCases, selection: $model.destination) { destination in
+                        Label(destination.rawValue, systemImage: destination.symbol)
+                            .font((compact ? Font.callout : Font.body).weight(model.destination == destination ? .semibold : .regular))
+                            .padding(.vertical, compact ? 1 : 4)
+                            .tag(destination)
+                    }
+                    .listStyle(.sidebar)
+                    .scrollContentBackground(.hidden)
+
+                    sidebarStatus(compact: compact)
                 }
-                .listStyle(.sidebar)
-                .scrollContentBackground(.hidden)
-
-                sidebarStatus
             }
+            .frame(width: 230)
+            .frame(maxHeight: .infinity)
             .background(MacroTheme.sidebar)
-            .navigationSplitViewColumnWidth(min: 155, ideal: 190, max: 230)
-        } detail: {
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(MacroTheme.border.opacity(0.65))
+                    .frame(width: 1)
+                    .opacity(sidebarVisible ? 1 : 0)
+            }
+            .frame(width: sidebarVisible ? 230 : 0)
+            .clipped()
+            .opacity(sidebarVisible ? 1 : 0)
+            .allowsHitTesting(sidebarVisible)
+
             VStack(spacing: 0) {
                 if model.destination != .automation {
                     appHeader
@@ -36,15 +51,19 @@ struct RootView: View {
                     case .recorder: RecorderView()
                     case .target: TargetSelectionView()
                     case .logs: LogsView()
-                    case .automation: AutomationView(store: model.automationStore)
+                    case .automation: AutomationView(store: model.automationStore, sidebarVisible: $sidebarVisible)
                     case .settings: SettingsView()
                     }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
                 .background(MacroTheme.window)
+                .animation(nil, value: sidebarVisible)
             }
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationSplitViewStyle(.balanced)
+        .animation(.spring(response: 0.36, dampingFraction: 0.92), value: sidebarVisible)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(MacroTheme.window)
         .toolbarBackground(MacroTheme.toolbar, for: .windowToolbar)
         .tint(MacroTheme.accent)
         .preferredColorScheme(.dark)
@@ -65,25 +84,26 @@ struct RootView: View {
         }
     }
 
-    private var brandHeader: some View {
+    private func brandHeader(compact: Bool) -> some View {
         HStack(spacing: 11) {
-            BrandMark(size: 34)
+            BrandMark(size: compact ? 30 : 34)
             VStack(alignment: .leading, spacing: 0) {
-                Text("Macro").font(.title3.weight(.bold))
+                Text("Macro").font((compact ? Font.headline : Font.title3).weight(.bold))
                 Text("Automation studio").font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
+            sidebarToggleButton
         }
         .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 13)
+        .padding(.top, compact ? 8 : 12)
+        .padding(.bottom, compact ? 8 : 13)
     }
 
-    private var sidebarStatus: some View {
-        VStack(spacing: 10) {
+    private func sidebarStatus(compact: Bool) -> some View {
+        VStack(spacing: compact ? 6 : 10) {
             Divider().opacity(0.55)
 
-            HStack(spacing: 9) {
+            HStack(spacing: compact ? 7 : 9) {
                 ZStack {
                     Circle()
                         .fill(model.selectedTarget == nil ? Color.secondary.opacity(0.12) : Color.green.opacity(0.14))
@@ -91,7 +111,7 @@ struct RootView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(model.selectedTarget == nil ? Color.secondary : Color.green)
                 }
-                .frame(width: 30, height: 30)
+                .frame(width: compact ? 26 : 30, height: compact ? 26 : 30)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.selectedTarget?.applicationName ?? "No target")
@@ -115,7 +135,7 @@ struct RootView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(13)
+        .padding(compact ? 9 : 13)
     }
 
     private var activityColor: Color {
@@ -129,6 +149,11 @@ struct RootView: View {
 
     private var appHeader: some View {
         HStack(spacing: 10) {
+            if !sidebarVisible {
+                sidebarToggleButton
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            }
+
             if let destination = model.destination {
                 Image(systemName: destination.symbol)
                     .foregroundStyle(MacroTheme.accent)
@@ -192,6 +217,26 @@ struct RootView: View {
         .padding(.horizontal, 14)
         .frame(height: 60)
         .background(MacroTheme.toolbar)
+    }
+
+    /// The single sidebar control moves into the page header while the sidebar is closed.
+    private var sidebarToggleButton: some View {
+        SidebarToggleControl(isVisible: $sidebarVisible)
+    }
+}
+
+struct SidebarToggleControl: View {
+    @Binding var isVisible: Bool
+
+    var body: some View {
+        Button {
+            isVisible.toggle()
+        } label: {
+            Image(systemName: "sidebar.left")
+        }
+        .buttonStyle(.borderless)
+        .help(isVisible ? "Hide sidebar" : "Show sidebar")
+        .accessibilityLabel(isVisible ? "Hide sidebar" : "Show sidebar")
     }
 }
 

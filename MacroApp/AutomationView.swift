@@ -1,12 +1,15 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AutomationView: View {
     @EnvironmentObject private var model: AppModel
     @ObservedObject var store: AutomationStore
+    @Binding var sidebarVisible: Bool
     @State private var showLibrary = true
     @State private var showInspector = true
     @State private var compactLayout = false
+    @State private var didInitializeLayout = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,13 +17,31 @@ struct AutomationView: View {
             Divider().opacity(0.6)
 
             GeometryReader { proxy in
+                let libraryOverlayWidth = max(230, min(300, proxy.size.width * 0.72))
+                let inspectorOverlayWidth = min(280, proxy.size.width * 0.78)
+                let blockedDropRects: [CGRect] = {
+                    guard proxy.size.width < 1120 else { return [] }
+                    var rects: [CGRect] = []
+                    if showLibrary {
+                        rects.append(CGRect(x: 0, y: 0, width: libraryOverlayWidth, height: proxy.size.height))
+                    }
+                    if showInspector {
+                        rects.append(CGRect(
+                            x: proxy.size.width - inspectorOverlayWidth,
+                            y: 0,
+                            width: inspectorOverlayWidth,
+                            height: proxy.size.height
+                        ))
+                    }
+                    return rects
+                }()
                 Group {
                     if proxy.size.width >= 1120 {
                         HStack(spacing: 0) {
                             if showLibrary {
                                 AutomationLibraryPanel(store: store, macros: model.macros)
                                     .frame(width: 285)
-                                    .transition(.move(edge: .leading).combined(with: .opacity))
+                                    .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .leading)))
                                 Divider().opacity(0.55)
                             }
                             AutomationCanvasView(store: store, model: model, macros: model.macros, inputEnabled: true)
@@ -34,23 +55,24 @@ struct AutomationView: View {
                         }
                     } else {
                         ZStack(alignment: .leading) {
-                                AutomationCanvasView(
-                                    store: store, model: model,
+                            AutomationCanvasView(
+                                store: store, model: model,
                                 macros: model.macros,
-                                inputEnabled: !showLibrary && !showInspector
+                                inputEnabled: true,
+                                blockedDropRects: blockedDropRects
                             )
                             if showLibrary {
                                 AutomationLibraryPanel(store: store, macros: model.macros)
-                                    .frame(width: min(270, proxy.size.width * 0.72))
+                                    .frame(width: libraryOverlayWidth)
                                     .background(MacroTheme.sidebar)
                                     .shadow(color: .black.opacity(0.2), radius: 18, x: 5)
-                                    .transition(.move(edge: .leading))
+                                    .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .leading)))
                             }
                             if showInspector {
                                 HStack(spacing: 0) {
                                     Spacer()
                                     AutomationInspector(store: store, model: model)
-                                        .frame(width: min(280, proxy.size.width * 0.78))
+                                        .frame(width: inspectorOverlayWidth)
                                         .background(MacroTheme.panel)
                                         .shadow(color: .black.opacity(0.2), radius: 18, x: -5)
                                 }
@@ -60,18 +82,16 @@ struct AutomationView: View {
                     }
                 }
                 .onAppear {
+                    guard !didInitializeLayout else { return }
+                    didInitializeLayout = true
                     compactLayout = proxy.size.width < 1120
                     if compactLayout {
                         showLibrary = false
                         showInspector = false
                     }
                 }
-                .onChange(of: proxy.size.width) { oldWidth, newWidth in
+                .onChange(of: proxy.size.width) { _, newWidth in
                     compactLayout = newWidth < 1120
-                    if oldWidth >= 1120, compactLayout {
-                        showLibrary = false
-                        showInspector = false
-                    }
                 }
             }
 
@@ -86,16 +106,10 @@ struct AutomationView: View {
 
     private var automationToolbar: some View {
         HStack(spacing: 8) {
-            Button {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    showLibrary.toggle()
-                    if compactLayout, showLibrary { showInspector = false }
-                }
-            } label: {
-                Image(systemName: "sidebar.left")
+            if !sidebarVisible {
+                SidebarToggleControl(isVisible: $sidebarVisible)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
             }
-            .buttonStyle(.borderless)
-            .help("Show or hide automation library")
 
             Image(systemName: "point.3.connected.trianglepath.dotted")
                 .foregroundStyle(.blue)
@@ -121,6 +135,7 @@ struct AutomationView: View {
 
             Button("Save", systemImage: "square.and.arrow.down") { store.saveNow() }
                 .buttonStyle(.bordered)
+                .help("Save automation")
 
             Menu {
                 Button("Undo", systemImage: "arrow.uturn.backward", action: store.undo)
@@ -138,6 +153,7 @@ struct AutomationView: View {
                 Image(systemName: "ellipsis.circle")
             }
             .menuStyle(.borderlessButton)
+            .help("More automation actions")
 
             Spacer(minLength: 8)
 
@@ -174,7 +190,22 @@ struct AutomationView: View {
                 .padding(.horizontal, 2)
 
             Button {
-                withAnimation(.easeOut(duration: 0.18)) {
+                withAnimation(.easeInOut(duration: 0.26)) {
+                    showLibrary.toggle()
+                    if compactLayout, showLibrary { showInspector = false }
+                }
+            } label: {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .help(showLibrary ? "Hide automation library" : "Show automation library")
+            .accessibilityLabel(showLibrary ? "Hide automation library" : "Show automation library")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.26)) {
                     showInspector.toggle()
                     if compactLayout, showInspector { showLibrary = false }
                 }
@@ -182,7 +213,8 @@ struct AutomationView: View {
                 Image(systemName: "sidebar.right")
             }
             .buttonStyle(.borderless)
-            .help("Properties inspector")
+            .help(showInspector ? "Hide properties inspector" : "Show properties inspector")
+            .accessibilityLabel(showInspector ? "Hide properties inspector" : "Show properties inspector")
         }
         .padding(.horizontal, 10)
         .frame(height: 60)
@@ -344,9 +376,15 @@ private struct AutomationLibraryPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, -8)
             }
-            .padding(14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
         }
-        .scrollIndicators(.hidden)
+        .overlay(alignment: .topLeading) {
+            OverlayScrollerStyleProbe()
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .background(MacroTheme.sidebar)
     }
 
@@ -383,6 +421,61 @@ private struct AutomationLibraryPanel: View {
         case .resetTimer: "Restart elapsed-time conditions"
         case .note: "Add an editable canvas note"
         case .macro: "Run a saved macro"
+        }
+    }
+}
+
+/// Keep the Automation library's native macOS scroller in the slim overlay style.
+private struct OverlayScrollerStyleProbe: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        ScrollerProbeView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? ScrollerProbeView)?.applyOverlayScrollerStyle()
+    }
+
+    private final class ScrollerProbeView: NSView {
+        private weak var styledScrollView: NSScrollView?
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            scheduleStyleUpdate()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            scheduleStyleUpdate()
+        }
+
+        func applyOverlayScrollerStyle() {
+            guard let rootView = window?.contentView else { return }
+            let probePoint = convert(NSPoint(x: bounds.midX, y: bounds.midY), to: nil)
+            var matchingScrollViews: [NSScrollView] = []
+
+            func collectScrollViews(in view: NSView) {
+                if let scrollView = view as? NSScrollView,
+                   scrollView.convert(scrollView.bounds, to: nil).contains(probePoint) {
+                    matchingScrollViews.append(scrollView)
+                }
+                view.subviews.forEach(collectScrollViews)
+            }
+
+            collectScrollViews(in: rootView)
+            guard let scrollView = matchingScrollViews.min(by: {
+                $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height
+            }) else { return }
+
+            guard styledScrollView !== scrollView || scrollView.scrollerStyle != .overlay else { return }
+            styledScrollView = scrollView
+            scrollView.scrollerStyle = .overlay
+            scrollView.autohidesScrollers = true
+        }
+
+        private func scheduleStyleUpdate() {
+            DispatchQueue.main.async { [weak self] in
+                self?.applyOverlayScrollerStyle()
+            }
         }
     }
 }
@@ -431,6 +524,14 @@ private enum AutomationCanvasTool: String, CaseIterable, Identifiable, Equatable
         case .pan: "Pan"
         case .section: "Section"
         case .note: "Note"
+        }
+    }
+    var helpTitle: String {
+        switch self {
+        case .select: "Select and move nodes"
+        case .pan: "Pan canvas"
+        case .section: "Create section"
+        case .note: "Add note"
         }
     }
     var symbol: String {
@@ -574,11 +675,36 @@ private final class CanvasInputView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
+private struct CanvasLibraryDropDelegate: DropDelegate {
+    let onDrop: (String, CGPoint) -> Bool
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [UTType.plainText])
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .copy)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let location = info.location
+        guard let provider = info.itemProviders(for: [UTType.plainText]).first else { return false }
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let token = object as? String else { return }
+            DispatchQueue.main.async {
+                _ = onDrop(token, location)
+            }
+        }
+        return true
+    }
+}
+
 private struct AutomationCanvasView: View {
     @ObservedObject var store: AutomationStore
     @ObservedObject var model: AppModel
     let macros: [MacroDefinition]
     let inputEnabled: Bool
+    var blockedDropRects: [CGRect] = []
     @State private var zoom: CGFloat = 1
     @State private var pan = CGSize(width: 50, height: 40)
     @State private var draft: ConnectionDraft?
@@ -593,6 +719,8 @@ private struct AutomationCanvasView: View {
     @State private var sectionToolStart: CGPoint?
     @State private var sectionToolEnd: CGPoint?
     @State private var canvasToolDragTranslation = CGSize.zero
+    @State private var hoveredCanvasTool: AutomationCanvasTool?
+    @State private var fitToolHovered = false
 
     private let nodeSize = CGSize(width: 238, height: 76)
 
@@ -723,32 +851,22 @@ private struct AutomationCanvasView: View {
                         }
                     }
             )
-            .dropDestination(for: String.self) { items, location in
-                guard store.canEdit, let token = items.first else { return false }
-                let point = logicalPoint(from: location)
-                if token.hasPrefix("macro:"),
-                   let id = UUID(uuidString: String(token.dropFirst("macro:".count))) {
-                    store.addNode(kind: .macro, macroID: id, at: point)
-                    return true
-                }
-                if token.hasPrefix("flow:"),
-                   let kind = AutomationNodeKind(rawValue: String(token.dropFirst("flow:".count))) {
-                    store.addNode(kind: kind, at: point)
-                    return true
-                }
-                return false
-            }
-            .onDeleteCommand(perform: store.deleteSelection)
+            .onDrop(of: [UTType.plainText], delegate: CanvasLibraryDropDelegate(onDrop: handleLibraryDrop))
+            .onDeleteCommand(perform: deleteCanvasSelection)
             .focusable()
             .focusEffectDisabled()
             .background(MacroTheme.canvas)
             .onAppear {
+                migrateSectionMemberships()
                 DispatchQueue.main.async { fitWorkflow(in: proxy.size) }
             }
             .onChange(of: store.selectedAutomationID) { _, _ in
                 selectedNodeIDs.removeAll()
                 groupDragOrigins.removeAll()
-                DispatchQueue.main.async { fitWorkflow(in: proxy.size) }
+                DispatchQueue.main.async {
+                    migrateSectionMemberships()
+                    fitWorkflow(in: proxy.size)
+                }
             }
             .onChange(of: proxy.size) { _, newSize in
                 DispatchQueue.main.async { fitWorkflow(in: newSize) }
@@ -761,11 +879,19 @@ private struct AutomationCanvasView: View {
             if let automation = store.selectedAutomation {
                 let issues = automation.validationIssues(availableMacroIDs: Set(macros.map(\.id)))
                 ForEach(automation.sections) { section in
-                    let containedNodeIDs = Set(automation.nodes.filter { section.frame.cgRect.contains($0.position.cgPoint) }.map(\.id))
+                    let validNodeIDs = Set(automation.nodes.map(\.id))
+                    let containedNodeIDs = section.nodeIDs.intersection(validNodeIDs)
                     WorkflowSectionCard(
                         section: section,
+                        containedNodeCount: containedNodeIDs.count,
+                        isSelected: store.selectedSectionID == section.id,
+                        color: sectionColor(section.color),
                         canEdit: store.canEdit,
                         canDrag: activeCanvasTool == .select,
+                        onSelect: {
+                            selectedNodeIDs.removeAll()
+                            store.selectSection(section.id)
+                        },
                         onTitleEditingChanged: { isEditing in
                             if isEditing { store.beginContinuousEdit() }
                             else { store.endContinuousEdit() }
@@ -773,6 +899,8 @@ private struct AutomationCanvasView: View {
                         onRename: { store.renameSection(section.id, to: $0) },
                         onDelete: { store.deleteSection(section.id) },
                         onMoveBegan: {
+                            selectedNodeIDs.removeAll()
+                            store.selectSection(section.id)
                             sectionDragInProgress = true
                             marqueeStart = nil
                             marqueeEnd = nil
@@ -781,12 +909,29 @@ private struct AutomationCanvasView: View {
                         onMove: { delta in
                             store.moveSection(
                                 section.id,
-                                by: CGSize(width: delta.width / zoom, height: delta.height / zoom),
-                                containing: containedNodeIDs
+                                by: CGSize(width: delta.width / zoom, height: delta.height / zoom)
                             )
                         },
                         onMoveEnded: {
                             sectionDragInProgress = false
+                            store.endContinuousEdit()
+                        },
+                        onResizeBegan: {
+                            sectionDragInProgress = true
+                            marqueeStart = nil
+                            marqueeEnd = nil
+                            store.beginContinuousEdit()
+                        },
+                        onResize: { handle, delta in
+                            store.resizeSection(
+                                section.id,
+                                from: handle,
+                                by: CGSize(width: delta.width / zoom, height: delta.height / zoom)
+                            )
+                        },
+                        onResizeEnded: {
+                            sectionDragInProgress = false
+                            expandSectionToFitMembers(sectionID: section.id)
                             store.endContinuousEdit()
                         }
                     )
@@ -935,10 +1080,14 @@ private struct AutomationCanvasView: View {
                             groupDragOrigins.removeAll()
                             store.beginContinuousEdit()
                         },
-                        onMove: { point in moveSelectedNodes(draggedNodeID: node.id, to: point, nodes: automation.nodes) },
+                        onMove: { point in
+                            moveSelectedNodes(draggedNodeID: node.id, to: point, nodes: automation.nodes)
+                        },
                         onMoveEnded: {
                             nodeDragInProgress = false
                             groupDragOrigins.removeAll()
+                            resolveNodeCollisions(for: selectedNodeIDs)
+                            reconcileSectionMembership(for: selectedNodeIDs)
                             store.endContinuousEdit()
                         },
                         onConnectionChanged: { branch, canvasPoint in
@@ -950,10 +1099,24 @@ private struct AutomationCanvasView: View {
                         onRun: { model.runAutomationFromNode(node) },
                         onRunNode: { model.testAutomationNode(node) },
                         onTest: { model.testAutomationNode(node) },
-                        onDuplicate: { store.duplicateNode(node.id) },
+                        onDuplicate: {
+                            store.duplicateNode(node.id)
+                            if let duplicatedNodeID = store.selectedNodeID {
+                                resolveNodeCollisions(for: [duplicatedNodeID])
+                            }
+                            expandAllSectionsToFitMembers()
+                        },
                         onRename: { store.renameNode(node.id, to: $0) },
                         onDisable: { store.toggleNodeEnabled(node.id) },
-                        onDelete: { store.selectNode(node.id); store.deleteSelection() }
+                        onDelete: {
+                            if selectedNodeIDs.contains(node.id), selectedNodeIDs.count > 1 {
+                                deleteCanvasSelection()
+                            } else {
+                                store.selectNode(node.id)
+                                store.deleteSelection()
+                                selectedNodeIDs.remove(node.id)
+                            }
+                        }
                     )
                     .position(node.position.cgPoint)
                 }
@@ -974,6 +1137,7 @@ private struct AutomationCanvasView: View {
         HStack(spacing: 4) {
             AppSearchField(placeholder: "Find node", text: $nodeSearch)
                 .frame(width: 138)
+                .help("Find a node in this workflow")
                 .onChange(of: nodeSearch) { _, value in
                     guard !value.isEmpty, let node = filteredNodes.first else { return }
                     selectedNodeIDs = [node.id]
@@ -983,6 +1147,8 @@ private struct AutomationCanvasView: View {
                 setZoom(zoom - 0.1, around: CGPoint(x: size.width / 2, y: size.height / 2))
             } label: { Image(systemName: "minus") }
                 .keyboardShortcut("-", modifiers: .command)
+                .help("Zoom out (⌘−)")
+                .accessibilityLabel("Zoom out")
             Slider(
                 value: Binding(
                     get: { Double(zoom) },
@@ -994,13 +1160,18 @@ private struct AutomationCanvasView: View {
             )
             .frame(width: 78)
             .controlSize(.mini)
+            .help("Adjust canvas zoom")
+            .accessibilityLabel("Canvas zoom")
             Text("\(Int(zoom * 100))%")
                 .font(.caption.monospacedDigit())
                 .frame(width: 44)
+                .help("Current zoom level")
             Button {
                 setZoom(zoom + 0.1, around: CGPoint(x: size.width / 2, y: size.height / 2))
             } label: { Image(systemName: "plus") }
                 .keyboardShortcut("=", modifiers: .command)
+                .help("Zoom in (⌘+)")
+                .accessibilityLabel("Zoom in")
             Button {
                 fitWorkflow(in: size)
             } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
@@ -1012,6 +1183,7 @@ private struct AutomationCanvasView: View {
                 .disabled(store.selectedNode == nil)
             Button {
                 store.autoArrangeSelected()
+                expandAllSectionsToFitMembers()
                 DispatchQueue.main.async { fitWorkflow(in: size) }
             } label: { Image(systemName: "rectangle.3.group") }
                 .help("Arrange workflow vertically")
@@ -1042,7 +1214,9 @@ private struct AutomationCanvasView: View {
         .background(MacroTheme.raised, in: RoundedRectangle(cornerRadius: 9))
         .overlay { RoundedRectangle(cornerRadius: 9).stroke(MacroTheme.border.opacity(0.9)) }
         .help("Drag empty canvas to multi-select · Right-click and drag to pan · Scroll to zoom")
-        .position(x: max(selectedNodeIDs.count > 1 ? 230 : 165, size.width - (selectedNodeIDs.count > 1 ? 240 : 165)), y: 32)
+        .padding(.trailing, 16)
+        .frame(width: size.width, height: 64, alignment: .trailing)
+        .position(x: size.width / 2, y: 32)
     }
 
     private func canvasToolbox(size: CGSize) -> some View {
@@ -1064,7 +1238,10 @@ private struct AutomationCanvasView: View {
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
                 .accessibilityLabel(tool.title)
-                .help(tool.title)
+                .help(tool.helpTitle)
+                .onHover { isHovering in
+                    hoveredCanvasTool = isHovering ? tool : (hoveredCanvasTool == tool ? nil : hoveredCanvasTool)
+                }
             }
             Divider().frame(height: 22).padding(.horizontal, 3)
             Button { fitWorkflow(in: size) } label: {
@@ -1075,10 +1252,31 @@ private struct AutomationCanvasView: View {
             .buttonStyle(.plain)
             .contentShape(Rectangle())
             .help("Fit workflow")
+            .onHover { fitToolHovered = $0 }
         }
         .padding(5)
         .background(MacroTheme.raised.opacity(0.97), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(MacroTheme.border) }
+        .overlay(alignment: .top) {
+            if let hoverLabel = fitToolHovered ? "Fit workflow" : hoveredCanvasTool?.helpTitle {
+                Text(hoverLabel)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(MacroTheme.raised.opacity(0.98), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .stroke(MacroTheme.border, lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.28), radius: 6, y: 2)
+                    .offset(y: -34)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: hoveredCanvasTool)
+        .animation(.easeOut(duration: 0.12), value: fitToolHovered)
         .shadow(color: .black.opacity(0.22), radius: 12, y: 4)
         .position(x: size.width / 2, y: size.height - 36)
     }
@@ -1140,6 +1338,23 @@ private struct AutomationCanvasView: View {
         }
     }
 
+    private func deleteCanvasSelection() {
+        if !selectedNodeIDs.isEmpty {
+            let startNodeIDs = Set(
+                (store.selectedAutomation?.nodes ?? [])
+                    .filter { $0.kind == .start }
+                    .map(\.id)
+            )
+            store.deleteNodes(selectedNodeIDs)
+            selectedNodeIDs.formIntersection(startNodeIDs)
+            if let remainingStartID = selectedNodeIDs.first {
+                store.selectNode(remainingStartID)
+            }
+        } else {
+            store.deleteSelection()
+        }
+    }
+
     private enum SelectionAlignment { case left, center }
 
     private func alignSelectedNodes(_ alignment: SelectionAlignment) {
@@ -1155,6 +1370,7 @@ private struct AutomationCanvasView: View {
         for node in nodes {
             store.setNodePosition(node.id, to: CGPoint(x: x, y: CGFloat(node.position.y)))
         }
+        reconcileSectionMembership(for: selectedNodeIDs)
         store.endContinuousEdit()
     }
 
@@ -1169,6 +1385,7 @@ private struct AutomationCanvasView: View {
         for (index, node) in nodes.enumerated() {
             store.setNodePosition(node.id, to: CGPoint(x: CGFloat(node.position.x), y: CGFloat(first + Double(index) * step)))
         }
+        reconcileSectionMembership(for: selectedNodeIDs)
         store.endContinuousEdit()
     }
 
@@ -1188,8 +1405,16 @@ private struct AutomationCanvasView: View {
             width: Double(max(220, maxX - minX + padding * 2)),
             height: Double(max(130, maxY - minY + padding * 2 + header))
         )
-        let section = AutomationSection(title: "New Section", frame: frame)
+        let section = AutomationSection(
+            title: "New Section",
+            frame: frame,
+            nodeIDs: Set(nodes.map(\.id))
+        )
         store.addSection(section)
+        claimNodes(section.nodeIDs, for: section.id)
+        expandSectionToFitMembers(sectionID: section.id)
+        selectedNodeIDs.removeAll()
+        store.selectSection(section.id)
     }
 
     private var sectionToolRect: CGRect? {
@@ -1206,13 +1431,305 @@ private struct AutomationCanvasView: View {
         guard let rect = sectionToolRect else { return }
         let logicalTopLeft = logicalPoint(from: CGPoint(x: rect.minX, y: rect.minY))
         let logicalBottomRight = logicalPoint(from: CGPoint(x: rect.maxX, y: rect.maxY))
+        let header: CGFloat = 34
         let frame = WorkflowFrame(
             x: Double(logicalTopLeft.x),
-            y: Double(logicalTopLeft.y),
+            y: Double(logicalTopLeft.y - header),
             width: Double(max(190, logicalBottomRight.x - logicalTopLeft.x)),
-            height: Double(max(120, logicalBottomRight.y - logicalTopLeft.y))
+            height: Double(max(120, logicalBottomRight.y - logicalTopLeft.y + header))
         )
-        store.addSection(AutomationSection(title: "New Section", frame: frame))
+        let contentRect = CGRect(
+            x: logicalTopLeft.x,
+            y: logicalTopLeft.y,
+            width: max(190, logicalBottomRight.x - logicalTopLeft.x),
+            height: max(86, logicalBottomRight.y - logicalTopLeft.y)
+        )
+        let containedIDs = Set(
+            (store.selectedAutomation?.nodes ?? [])
+                .filter { contentRect.contains($0.position.cgPoint) }
+                .map(\.id)
+        )
+        let section = AutomationSection(title: "New Section", frame: frame, nodeIDs: containedIDs)
+        store.addSection(section)
+        claimNodes(containedIDs, for: section.id)
+        expandSectionToFitMembers(sectionID: section.id)
+        selectedNodeIDs.removeAll()
+        store.selectSection(section.id)
+    }
+
+    private func nodeFrame(_ node: AutomationNode) -> CGRect {
+        CGRect(
+            x: CGFloat(node.position.x) - nodeSize.width / 2,
+            y: CGFloat(node.position.y) - nodeSize.height / 2,
+            width: nodeSize.width,
+            height: nodeSize.height
+        )
+    }
+
+    private func handleLibraryDrop(_ token: String, at location: CGPoint) -> Bool {
+        guard store.canEdit,
+              !blockedDropRects.contains(where: { $0.contains(location) }) else { return false }
+        let proposedPoint = logicalPoint(from: location)
+        let targetSectionID = store.selectedAutomation?.sections.reversed().first {
+            $0.frame.cgRect.contains(proposedPoint)
+        }?.id
+        let point = nonOverlappingDropPoint(proposedPoint)
+        let existingNodeIDs = Set(store.selectedAutomation?.nodes.map(\.id) ?? [])
+
+        if token.hasPrefix("macro:"),
+           let id = UUID(uuidString: String(token.dropFirst("macro:".count))) {
+            store.addNode(kind: .macro, macroID: id, at: point)
+        } else if token.hasPrefix("flow:"),
+                  let kind = AutomationNodeKind(rawValue: String(token.dropFirst("flow:".count))) {
+            store.addNode(kind: kind, at: point)
+        } else {
+            return false
+        }
+
+        guard let nodeID = store.selectedNodeID, !existingNodeIDs.contains(nodeID) else { return false }
+        selectedNodeIDs = [nodeID]
+        if let targetSectionID {
+            attachNode(nodeID, to: targetSectionID)
+        } else {
+            reconcileSectionMembership(for: [nodeID])
+        }
+        return true
+    }
+
+    /// Keeps a newly dropped library node from landing directly on an existing
+    /// node. The user's horizontal drop position is preserved while the node is
+    /// advanced downward to the nearest free row.
+    private func nonOverlappingDropPoint(_ proposedPoint: CGPoint) -> CGPoint {
+        if NSEvent.modifierFlags.contains(.option) { return proposedPoint }
+        guard let nodes = store.selectedAutomation?.nodes, !nodes.isEmpty else { return proposedPoint }
+        let verticalStep = nodeSize.height + 18
+        var candidate = proposedPoint
+
+        for _ in 0..<100 {
+            let candidateFrame = CGRect(
+                x: candidate.x - nodeSize.width / 2,
+                y: candidate.y - nodeSize.height / 2,
+                width: nodeSize.width,
+                height: nodeSize.height
+            ).insetBy(dx: -9, dy: -9)
+            guard nodes.contains(where: { candidateFrame.intersects(nodeFrame($0)) }) else {
+                return candidate
+            }
+            candidate.y += verticalStep
+        }
+        return candidate
+    }
+
+    /// Prevents node cards from stacking after a drag or duplication. Multiple
+    /// selected nodes are shifted together so their internal layout and
+    /// connections remain unchanged.
+    private func resolveNodeCollisions(for movingNodeIDs: Set<UUID>) {
+        guard let offset = collisionResolutionOffset(for: movingNodeIDs),
+              let automation = store.selectedAutomation else { return }
+        let movingNodes = automation.nodes.filter { movingNodeIDs.contains($0.id) }
+        for node in movingNodes {
+            store.setNodePosition(
+                node.id,
+                to: CGPoint(
+                    x: CGFloat(node.position.x) + offset.width,
+                    y: CGFloat(node.position.y) + offset.height
+                )
+            )
+        }
+    }
+
+    private func collisionResolutionOffset(for movingNodeIDs: Set<UUID>) -> CGSize? {
+        guard store.canEdit,
+              !NSEvent.modifierFlags.contains(.option),
+              !movingNodeIDs.isEmpty,
+              let automation = store.selectedAutomation else { return nil }
+
+        let movingNodes = automation.nodes.filter { movingNodeIDs.contains($0.id) }
+        let stationaryFrames = automation.nodes
+            .filter { !movingNodeIDs.contains($0.id) }
+            .map(nodeFrame)
+        guard !movingNodes.isEmpty else { return nil }
+
+        let clearance: CGFloat = 10
+        func isAvailable(_ delta: CGSize) -> Bool {
+            !movingNodes.contains { node in
+                let frame = nodeFrame(node)
+                    .offsetBy(dx: delta.width, dy: delta.height)
+                    .insetBy(dx: -clearance, dy: -clearance)
+                return stationaryFrames.contains { frame.intersects($0) }
+            }
+        }
+        guard !isAvailable(.zero) else { return nil }
+
+        let horizontalStep = nodeSize.width + clearance * 2
+        let verticalStep = nodeSize.height + clearance * 2
+        var candidates: [CGSize] = []
+        for verticalIndex in -12...12 {
+            for horizontalIndex in -6...6 where verticalIndex != 0 || horizontalIndex != 0 {
+                candidates.append(CGSize(
+                    width: CGFloat(horizontalIndex) * horizontalStep,
+                    height: CGFloat(verticalIndex) * verticalStep
+                ))
+            }
+        }
+        candidates.sort {
+            let lhsDistance = $0.width * $0.width + $0.height * $0.height
+            let rhsDistance = $1.width * $1.width + $1.height * $1.height
+            return lhsDistance == rhsDistance ? abs($0.width) < abs($1.width) : lhsDistance < rhsDistance
+        }
+        return candidates.first(where: isAvailable)
+    }
+
+    private func attachNode(_ nodeID: UUID, to sectionID: UUID) {
+        guard let automation = store.selectedAutomation else { return }
+        for section in automation.sections {
+            var nodeIDs = section.nodeIDs
+            if section.id == sectionID {
+                nodeIDs.insert(nodeID)
+            } else {
+                nodeIDs.remove(nodeID)
+            }
+            store.setSectionNodeIDs(section.id, to: nodeIDs)
+        }
+        if automation.sections.first(where: { $0.id == sectionID })?.layout == .vertical {
+            store.arrangeSectionVertically(sectionID)
+        } else {
+            expandSectionToFitMembers(sectionID: sectionID)
+        }
+    }
+
+    /// Assigns nodes to exactly one section. A node stays attached while its
+    /// center remains inside its current container; dragging its center outside
+    /// detaches it or transfers it to the topmost section beneath it.
+    private func reconcileSectionMembership(for affectedNodeIDs: Set<UUID>) {
+        guard store.canEdit,
+              !affectedNodeIDs.isEmpty,
+              let automation = store.selectedAutomation else { return }
+
+        let validNodeIDs = Set(automation.nodes.map(\.id))
+        var memberships = Dictionary(uniqueKeysWithValues: automation.sections.map {
+            ($0.id, $0.nodeIDs.intersection(validNodeIDs))
+        })
+
+        for nodeID in affectedNodeIDs {
+            guard let node = automation.nodes.first(where: { $0.id == nodeID }) else { continue }
+            let currentOwner = automation.sections.first {
+                memberships[$0.id, default: []].contains(nodeID)
+            }
+            let owner: AutomationSection?
+            if let currentOwner, currentOwner.frame.cgRect.contains(node.position.cgPoint) {
+                owner = currentOwner
+            } else {
+                owner = automation.sections.reversed().first {
+                    $0.frame.cgRect.contains(node.position.cgPoint)
+                }
+            }
+
+            for section in automation.sections {
+                if section.id == owner?.id {
+                    memberships[section.id, default: []].insert(nodeID)
+                } else {
+                    memberships[section.id, default: []].remove(nodeID)
+                }
+            }
+        }
+
+        for section in automation.sections {
+            let nodeIDs = memberships[section.id, default: []]
+            store.setSectionNodeIDs(section.id, to: nodeIDs)
+            if section.layout == .vertical {
+                store.arrangeSectionVertically(section.id)
+            } else {
+                expandSectionToFitMembers(sectionID: section.id, nodeIDs: nodeIDs)
+            }
+        }
+    }
+
+    /// Makes a newly created section the sole owner of its initial nodes.
+    private func claimNodes(_ nodeIDs: Set<UUID>, for sectionID: UUID) {
+        guard !nodeIDs.isEmpty, let automation = store.selectedAutomation else { return }
+        for section in automation.sections where section.id != sectionID {
+            store.setSectionNodeIDs(section.id, to: section.nodeIDs.subtracting(nodeIDs))
+        }
+    }
+
+    /// Loads old section data safely. Sections saved before persistent
+    /// membership existed adopt the nodes whose centers are already inside.
+    private func migrateSectionMemberships() {
+        guard store.canEdit, let automation = store.selectedAutomation else { return }
+        let validNodeIDs = Set(automation.nodes.map(\.id))
+        var claimedNodeIDs = Set<UUID>()
+        var memberships: [UUID: Set<UUID>] = [:]
+
+        for section in automation.sections.reversed() {
+            var nodeIDs = section.nodeIDs.intersection(validNodeIDs).subtracting(claimedNodeIDs)
+            if nodeIDs.isEmpty {
+                nodeIDs = Set(automation.nodes.filter {
+                    !claimedNodeIDs.contains($0.id) && section.frame.cgRect.contains($0.position.cgPoint)
+                }.map(\.id))
+            }
+            memberships[section.id] = nodeIDs
+            claimedNodeIDs.formUnion(nodeIDs)
+        }
+
+        for section in automation.sections {
+            let nodeIDs = memberships[section.id, default: []]
+            store.setSectionNodeIDs(section.id, to: nodeIDs)
+            if section.layout == .vertical {
+                store.arrangeSectionVertically(section.id)
+            } else {
+                expandSectionToFitMembers(sectionID: section.id, nodeIDs: nodeIDs)
+            }
+        }
+    }
+
+    /// Sections grow as attached nodes approach or cross an edge. They never
+    /// shrink automatically, so a user's manual size remains intact.
+    private func expandSectionToFitMembers(sectionID: UUID?, nodeIDs suppliedNodeIDs: Set<UUID>? = nil) {
+        guard let sectionID,
+              let automation = store.selectedAutomation,
+              let section = automation.sections.first(where: { $0.id == sectionID }) else { return }
+        let nodeIDs = suppliedNodeIDs ?? section.nodeIDs
+        let memberFrames = automation.nodes.filter { nodeIDs.contains($0.id) }.map(nodeFrame)
+        guard let firstFrame = memberFrames.first else { return }
+
+        let bounds = memberFrames.dropFirst().reduce(firstFrame) { $0.union($1) }
+        let headerHeight: CGFloat = 34
+        let padding = CGFloat(section.padding)
+        let requiredFrame = CGRect(
+            x: bounds.minX - padding,
+            y: bounds.minY - headerHeight - padding,
+            width: bounds.width + padding * 2,
+            height: bounds.height + headerHeight + padding * 2
+        )
+        let currentFrame = section.frame.cgRect
+        let expandedFrame = CGRect(
+            x: min(currentFrame.minX, requiredFrame.minX),
+            y: min(currentFrame.minY, requiredFrame.minY),
+            width: max(currentFrame.maxX, requiredFrame.maxX) - min(currentFrame.minX, requiredFrame.minX),
+            height: max(currentFrame.maxY, requiredFrame.maxY) - min(currentFrame.minY, requiredFrame.minY)
+        )
+        guard expandedFrame != currentFrame else { return }
+        store.setSectionFrame(
+            sectionID,
+            to: WorkflowFrame(
+                x: Double(expandedFrame.minX),
+                y: Double(expandedFrame.minY),
+                width: Double(expandedFrame.width),
+                height: Double(expandedFrame.height)
+            )
+        )
+    }
+
+    private func expandAllSectionsToFitMembers() {
+        guard let automation = store.selectedAutomation else { return }
+        for section in automation.sections {
+            if section.layout == .vertical {
+                store.arrangeSectionVertically(section.id)
+            } else {
+                expandSectionToFitMembers(sectionID: section.id)
+            }
+        }
     }
 
     private func setZoom(_ proposedZoom: CGFloat, around anchor: CGPoint) {
@@ -1423,48 +1940,75 @@ private struct AutomationCanvasView: View {
 
 private struct WorkflowSectionCard: View {
     let section: AutomationSection
+    let containedNodeCount: Int
+    let isSelected: Bool
+    let color: Color
     let canEdit: Bool
     let canDrag: Bool
+    let onSelect: () -> Void
     let onTitleEditingChanged: (Bool) -> Void
     let onRename: (String) -> Void
     let onDelete: () -> Void
     let onMoveBegan: () -> Void
     let onMove: (CGSize) -> Void
     let onMoveEnded: () -> Void
+    let onResizeBegan: () -> Void
+    let onResize: (AutomationSectionResizeHandle, CGSize) -> Void
+    let onResizeEnded: () -> Void
     @State private var title: String
     @State private var isDragging = false
     @State private var previousTranslation = CGSize.zero
+    @State private var activeResizeHandle: AutomationSectionResizeHandle?
+    @State private var hoveredResizeHandle: AutomationSectionResizeHandle?
+    @State private var previousResizeTranslation = CGSize.zero
 
     init(
         section: AutomationSection,
+        containedNodeCount: Int,
+        isSelected: Bool,
+        color: Color,
         canEdit: Bool,
         canDrag: Bool,
+        onSelect: @escaping () -> Void,
         onTitleEditingChanged: @escaping (Bool) -> Void,
         onRename: @escaping (String) -> Void,
         onDelete: @escaping () -> Void,
         onMoveBegan: @escaping () -> Void,
         onMove: @escaping (CGSize) -> Void,
-        onMoveEnded: @escaping () -> Void
+        onMoveEnded: @escaping () -> Void,
+        onResizeBegan: @escaping () -> Void,
+        onResize: @escaping (AutomationSectionResizeHandle, CGSize) -> Void,
+        onResizeEnded: @escaping () -> Void
     ) {
         self.section = section
+        self.containedNodeCount = containedNodeCount
+        self.isSelected = isSelected
+        self.color = color
         self.canEdit = canEdit
         self.canDrag = canDrag
+        self.onSelect = onSelect
         self.onTitleEditingChanged = onTitleEditingChanged
         self.onRename = onRename
         self.onDelete = onDelete
         self.onMoveBegan = onMoveBegan
         self.onMove = onMove
         self.onMoveEnded = onMoveEnded
+        self.onResizeBegan = onResizeBegan
+        self.onResize = onResize
+        self.onResizeEnded = onResizeEnded
         _title = State(initialValue: section.title)
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .fill(Color.accentColor.opacity(0.055))
+                .fill(color.opacity(containedNodeCount > 0 ? 0.075 : 0.035))
                 .overlay {
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.38), style: StrokeStyle(lineWidth: 1.2, dash: [7, 4]))
+                        .stroke(
+                            color.opacity(isSelected ? 0.95 : containedNodeCount > 0 ? 0.55 : 0.3),
+                            style: StrokeStyle(lineWidth: isSelected ? 2 : 1.2, dash: [7, 4])
+                        )
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 .gesture(
@@ -1490,12 +2034,13 @@ private struct WorkflowSectionCard: View {
                             onMoveEnded()
                         }
                 )
+                .simultaneousGesture(TapGesture().onEnded { onSelect() })
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 7) {
                     Image(systemName: "square.dashed")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.accentColor.opacity(0.9))
+                        .foregroundStyle(color.opacity(0.9))
                     TextField(
                         "Section name",
                         text: $title,
@@ -1511,25 +2056,118 @@ private struct WorkflowSectionCard: View {
                         if title != newValue { title = newValue }
                     }
                     Spacer(minLength: 4)
-                    Text("SECTION")
+                    Text("\(containedNodeCount) \(containedNodeCount == 1 ? "NODE" : "NODES")")
                         .font(.system(size: 8, weight: .bold, design: .rounded))
                         .tracking(0.7)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 30)
-                .background(Color.accentColor.opacity(0.08))
+                .background(color.opacity(isSelected ? 0.15 : 0.08))
 
                 Spacer(minLength: 0)
             }
             .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+
         }
+        .overlay {
+            if canEdit && canDrag {
+                sectionResizeHitAreas
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: containedNodeCount)
         .contextMenu {
             Button("Delete Section", systemImage: "trash", role: .destructive, action: onDelete)
                 .disabled(!canEdit)
         }
         .accessibilityElement(children: .contain)
         .help("Drag the section background to move it and its enclosed nodes")
+    }
+
+    private var sectionResizeHitAreas: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            ZStack {
+                resizeHitArea(.top, width: max(0, width - 28), height: 10)
+                    .position(x: width / 2, y: 3)
+                resizeHitArea(.bottom, width: max(0, width - 28), height: 10)
+                    .position(x: width / 2, y: height - 3)
+                resizeHitArea(.left, width: 10, height: max(0, height - 28))
+                    .position(x: 3, y: height / 2)
+                resizeHitArea(.right, width: 10, height: max(0, height - 28))
+                    .position(x: width - 3, y: height / 2)
+
+                resizeHitArea(.topLeft, width: 18, height: 18)
+                    .position(x: 5, y: 5)
+                resizeHitArea(.topRight, width: 18, height: 18)
+                    .position(x: width - 5, y: 5)
+                resizeHitArea(.bottomLeft, width: 18, height: 18)
+                    .position(x: 5, y: height - 5)
+                resizeHitArea(.bottomRight, width: 18, height: 18)
+                    .position(x: width - 5, y: height - 5)
+            }
+        }
+        .accessibilityLabel("Resize section from any edge or corner")
+    }
+
+    private func resizeHitArea(
+        _ handle: AutomationSectionResizeHandle,
+        width: CGFloat,
+        height: CGFloat
+    ) -> some View {
+        Rectangle()
+            .fill(color.opacity(hoveredResizeHandle == handle ? 0.13 : 0))
+            .frame(width: width, height: height)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering {
+                    hoveredResizeHandle = handle
+                    resizeCursor(for: handle).set()
+                } else {
+                    if hoveredResizeHandle == handle { hoveredResizeHandle = nil }
+                    if activeResizeHandle == nil { NSCursor.arrow.set() }
+                }
+            }
+            .highPriorityGesture(resizeGesture(for: handle))
+            .help("Drag to resize section")
+    }
+
+    private func resizeGesture(for handle: AutomationSectionResizeHandle) -> some Gesture {
+        DragGesture(minimumDistance: 1, coordinateSpace: .named("automationCanvas"))
+            .onChanged { value in
+                guard canDrag else { return }
+                if activeResizeHandle == nil {
+                    activeResizeHandle = handle
+                    previousResizeTranslation = .zero
+                    onResizeBegan()
+                }
+                guard activeResizeHandle == handle else { return }
+                let delta = CGSize(
+                    width: value.translation.width - previousResizeTranslation.width,
+                    height: value.translation.height - previousResizeTranslation.height
+                )
+                if delta != .zero { onResize(handle, delta) }
+                previousResizeTranslation = value.translation
+            }
+            .onEnded { _ in
+                guard activeResizeHandle == handle else { return }
+                activeResizeHandle = nil
+                previousResizeTranslation = .zero
+                NSCursor.arrow.set()
+                onResizeEnded()
+            }
+    }
+
+    private func resizeCursor(for handle: AutomationSectionResizeHandle) -> NSCursor {
+        switch handle {
+        case .left, .right:
+            return .resizeLeftRight
+        case .top, .bottom:
+            return .resizeUpDown
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return .crosshair
+        }
     }
 }
 
@@ -1997,6 +2635,8 @@ private struct AutomationInspector: View {
                     nodeInspector(node)
                 } else if let connectionID = store.selectedConnectionID {
                     connectionInspector(connectionID)
+                } else if let section = store.selectedSection {
+                    sectionInspector(section)
                 } else {
                     automationInspector
                 }
@@ -2008,6 +2648,105 @@ private struct AutomationInspector: View {
             .padding(16)
         }
         .background(MacroTheme.panel)
+    }
+
+    @ViewBuilder
+    private func sectionInspector(_ section: AutomationSection) -> some View {
+        SectionLabel(text: "Section Settings")
+        HStack(spacing: 10) {
+            Image(systemName: "square.dashed")
+                .foregroundStyle(sectionColor(section.color))
+                .frame(width: 34, height: 34)
+                .background(sectionColor(section.color).opacity(0.13), in: RoundedRectangle(cornerRadius: 8))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(section.title).font(.headline).lineLimit(2)
+                Text("\(section.nodeIDs.count) \(section.nodeIDs.count == 1 ? "node" : "nodes")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        InspectorField(title: "Name") {
+            TextField("Section name", text: Binding(
+                get: { store.selectedSection?.title ?? section.title },
+                set: { store.renameSection(section.id, to: $0) }
+            ))
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(MacroTheme.raised, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 9).stroke(MacroTheme.border, lineWidth: 1) }
+        }
+
+        InspectorField(title: "Color") {
+            Picker("Color", selection: Binding(
+                get: { store.selectedSection?.color ?? section.color },
+                set: { newColor in store.updateSection(section.id) { $0.color = newColor } }
+            )) {
+                ForEach(AutomationSectionColor.allCases) { color in
+                    Label(color.title, systemImage: "circle.fill")
+                        .foregroundStyle(sectionColor(color))
+                        .tag(color)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .inspectorControl()
+        }
+
+        InspectorField(title: "Layout") {
+            Picker("Layout", selection: Binding(
+                get: { store.selectedSection?.layout ?? section.layout },
+                set: { store.setSectionLayout(section.id, to: $0) }
+            )) {
+                ForEach(AutomationSectionLayout.allCases) { layout in
+                    Text(layout.title).tag(layout)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .inspectorControl()
+        }
+
+        InspectorField(title: "Padding") {
+            Stepper(
+                "\(Int(store.selectedSection?.padding ?? section.padding)) pt",
+                value: Binding(
+                    get: { store.selectedSection?.padding ?? section.padding },
+                    set: { store.setSectionPadding(section.id, to: $0) }
+                ),
+                in: 8...64,
+                step: 2
+            )
+        }
+
+        if section.layout == .vertical {
+            Text("Vertical Auto Layout keeps nodes centered, evenly spaced, and ordered from top to bottom.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Text("Freeform preserves manual node positions. Hold Option while dropping or moving to allow intentional overlap.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
+        Button("Fit to Contents", systemImage: "arrow.up.left.and.arrow.down.right") {
+            store.fitSectionToContents(section.id)
+        }
+        .disabled(section.nodeIDs.isEmpty || !store.canEdit)
+
+        Divider()
+        Button("Detach All Nodes", systemImage: "rectangle.portrait.and.arrow.right") {
+            store.detachAllNodes(from: section.id)
+        }
+        .disabled(section.nodeIDs.isEmpty || !store.canEdit)
+
+        Button("Delete Section (Keep Nodes)", systemImage: "trash", role: .destructive) {
+            store.deleteSection(section.id)
+        }
+        .disabled(!store.canEdit)
     }
 
     @ViewBuilder
@@ -2710,6 +3449,17 @@ private func nodeColor(_ kind: AutomationNodeKind) -> Color {
     case .stop: MacroPalette.recording
     case .resetTimer: .teal
     case .note: .yellow
+    }
+}
+
+private func sectionColor(_ color: AutomationSectionColor) -> Color {
+    switch color {
+    case .blue: .blue
+    case .purple: .purple
+    case .green: .green
+    case .orange: .orange
+    case .pink: .pink
+    case .gray: .gray
     }
 }
 

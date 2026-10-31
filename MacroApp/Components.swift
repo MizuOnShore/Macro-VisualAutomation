@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Observation
 
 enum MacroPalette {
     static let recording = Color(red: 0.92, green: 0.20, blue: 0.24)
@@ -8,19 +9,90 @@ enum MacroPalette {
     static let mouse = Color.purple
 }
 
-/// Shared application surfaces. Keeping these colors explicit prevents macOS
-/// system materials from turning different pages charcoal or gray.
+enum AppearancePalette: String, CaseIterable, Identifiable {
+    case current, graphite, highContrast
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .current: "Current"
+        case .graphite: "Graphite"
+        case .highContrast: "High Contrast"
+        }
+    }
+    var description: String {
+        switch self {
+        case .current: "The original deep blue palette"
+        case .graphite: "Softer neutral surfaces"
+        case .highContrast: "Stronger borders and clearer separation"
+        }
+    }
+
+    var previewColors: [Color] {
+        [colors.window, colors.panel, colors.raised, colors.accent].map { hex in
+            Color(red: Double((hex >> 16) & 0xFF) / 255,
+                  green: Double((hex >> 8) & 0xFF) / 255,
+                  blue: Double(hex & 0xFF) / 255)
+        }
+    }
+
+    fileprivate var colors: ThemeColors {
+        switch self {
+        case .current:
+            ThemeColors(window: 0x060C13, toolbar: 0x09111B, sidebar: 0x081019,
+                        panel: 0x0A1420, canvas: 0x050B11, card: 0x0E1925,
+                        raised: 0x121F2D, border: 0x1F3348, accent: 0x0E79FF, grid: 0x30526E)
+        case .graphite:
+            ThemeColors(window: 0x12171D, toolbar: 0x1B222A, sidebar: 0x171D24,
+                        panel: 0x1E2630, canvas: 0x10161C, card: 0x26313C,
+                        raised: 0x30404D, border: 0x455969, accent: 0x6AAEFF, grid: 0x647B8A)
+        case .highContrast:
+            ThemeColors(window: 0x07090B, toolbar: 0x101419, sidebar: 0x0B1015,
+                        panel: 0x151C24, canvas: 0x05080B, card: 0x1D2833,
+                        raised: 0x293949, border: 0x688097, accent: 0x69B5FF, grid: 0x7890A3)
+        }
+    }
+}
+
+private struct ThemeColors {
+    let window, toolbar, sidebar, panel, canvas, card, raised, border, accent, grid: UInt32
+}
+
+@Observable
+final class AppearanceThemeStore {
+    static let shared = AppearanceThemeStore()
+    private static let defaultsKey = "AppearancePalette"
+
+    var selected: AppearancePalette {
+        didSet { UserDefaults.standard.set(selected.rawValue, forKey: Self.defaultsKey) }
+    }
+
+    private init() {
+        selected = AppearancePalette(rawValue: UserDefaults.standard.string(forKey: Self.defaultsKey) ?? "") ?? .current
+    }
+}
+
+/// Shared application colors. Reading the observable selection here refreshes
+/// every SwiftUI surface that uses a theme token when the palette changes.
 enum MacroTheme {
-    static let window = Color(red: 0.025, green: 0.047, blue: 0.073)
-    static let toolbar = Color(red: 0.035, green: 0.067, blue: 0.105)
-    static let sidebar = Color(red: 0.030, green: 0.061, blue: 0.096)
-    static let panel = Color(red: 0.040, green: 0.078, blue: 0.120)
-    static let canvas = Color(red: 0.018, green: 0.043, blue: 0.068)
-    static let card = Color(red: 0.055, green: 0.098, blue: 0.145)
-    static let raised = Color(red: 0.071, green: 0.122, blue: 0.177)
-    static let border = Color(red: 0.120, green: 0.200, blue: 0.282)
-    static let accent = Color(red: 0.055, green: 0.475, blue: 1.000)
-    static let grid = Color(red: 0.190, green: 0.320, blue: 0.430)
+    private static var colors: ThemeColors { AppearanceThemeStore.shared.selected.colors }
+    private static var isCurrent: Bool { AppearanceThemeStore.shared.selected == .current }
+    private static func color(_ hex: UInt32) -> Color {
+        Color(red: Double((hex >> 16) & 0xFF) / 255,
+              green: Double((hex >> 8) & 0xFF) / 255,
+              blue: Double(hex & 0xFF) / 255)
+    }
+
+    static var window: Color { isCurrent ? Color(red: 0.025, green: 0.047, blue: 0.073) : color(colors.window) }
+    static var toolbar: Color { isCurrent ? Color(red: 0.035, green: 0.067, blue: 0.105) : color(colors.toolbar) }
+    static var sidebar: Color { isCurrent ? Color(red: 0.030, green: 0.061, blue: 0.096) : color(colors.sidebar) }
+    static var panel: Color { isCurrent ? Color(red: 0.040, green: 0.078, blue: 0.120) : color(colors.panel) }
+    static var canvas: Color { isCurrent ? Color(red: 0.018, green: 0.043, blue: 0.068) : color(colors.canvas) }
+    static var card: Color { isCurrent ? Color(red: 0.055, green: 0.098, blue: 0.145) : color(colors.card) }
+    static var raised: Color { isCurrent ? Color(red: 0.071, green: 0.122, blue: 0.177) : color(colors.raised) }
+    static var border: Color { isCurrent ? Color(red: 0.120, green: 0.200, blue: 0.282) : color(colors.border) }
+    static var accent: Color { isCurrent ? Color(red: 0.055, green: 0.475, blue: 1.000) : color(colors.accent) }
+    static var grid: Color { isCurrent ? Color(red: 0.190, green: 0.320, blue: 0.430) : color(colors.grid) }
 }
 
 /// A native AppKit button used for the recorder's critical controls.

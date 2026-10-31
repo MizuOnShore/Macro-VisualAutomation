@@ -488,6 +488,7 @@ struct SettingsView: View {
             Group {
                 switch selectedTab {
                 case .general: GeneralSettingsView()
+                case .appearance: AppearanceSettingsView()
                 case .hotkeys: HotkeySettingsView()
                 case .permissions: PermissionsSettingsView()
                 }
@@ -502,11 +503,12 @@ struct SettingsView: View {
 }
 
 private enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, hotkeys, permissions
+    case general, appearance, hotkeys, permissions
     var id: Self { self }
     var title: String {
         switch self {
         case .general: "General"
+        case .appearance: "Appearance"
         case .hotkeys: "Hotkeys"
         case .permissions: "Permissions"
         }
@@ -514,9 +516,69 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .general: "gear"
+        case .appearance: "paintpalette"
         case .hotkeys: "keyboard"
         case .permissions: "hand.raised"
         }
+    }
+}
+
+private struct AppearanceSettingsView: View {
+    @State private var appearance = AppearanceThemeStore.shared
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Appearance").font(.title2.weight(.bold))
+                    Text("Choose a color palette for Macro.")
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(AppearancePalette.allCases) { palette in
+                    Button {
+                        appearance.selected = palette
+                    } label: {
+                        HStack(spacing: 14) {
+                            HStack(spacing: 3) {
+                                ForEach(Array(palette.previewColors.enumerated()), id: \.offset) { _, color in
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .fill(color)
+                                        .frame(width: 18, height: 30)
+                                }
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(palette.title).font(.headline)
+                                Text(palette.description)
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 8)
+                            if appearance.selected == palette {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(MacroTheme.accent)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .padding(14)
+                        .background(MacroTheme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(appearance.selected == palette ? MacroTheme.accent : MacroTheme.border, lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(palette.title) palette")
+                    .accessibilityAddTraits(appearance.selected == palette ? .isSelected : [])
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .scrollContentBackground(.hidden)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(MacroTheme.panel)
     }
 }
 

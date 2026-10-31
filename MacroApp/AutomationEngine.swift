@@ -181,7 +181,8 @@ final class AutomationEngine {
                 current = nextNode(after: node.id, in: automation)
                 continue
             }
-            try await execute(node, automation: automation)
+            // Workflow runs don't display per-node action totals; node tests do.
+            _ = try await execute(node, automation: automation)
             store.completeNode(node.id)
 
             if node.kind == .macro, let macroID = node.macroID {

@@ -172,6 +172,7 @@ final class AppModel: ObservableObject {
             action.id = UUID()
             return action
         }
+        copy.isFavorite = false
         copy.name += " Copy"
         macros.append(copy)
         selectedMacroID = copy.id
@@ -185,6 +186,11 @@ final class AppModel: ObservableObject {
         macros[index].name = trimmed
         selectedMacroID = id
         log("Renamed recording to \(trimmed)")
+    }
+
+    func toggleFavoriteMacro(id: UUID) {
+        guard let index = macros.firstIndex(where: { $0.id == id }) else { return }
+        macros[index].isFavorite.toggle()
     }
 
     func deleteSelectedMacro() {

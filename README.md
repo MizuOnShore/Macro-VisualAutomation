@@ -56,7 +56,19 @@ xcodebuild -project Macro.xcodeproj \
 
 Macro releases all automation-held keys and mouse buttons on stop, error, target termination, and app termination.
 
+## Roblox travel-loop example
 
+The built-in **Roblox Travel Loop** and `Examples/RobloxTravelLoop.json` contain:
+
+1. W down
+2. Wait 10 seconds
+3. W up
+4. Wait 2 seconds
+5. E press for 0.1 seconds
+6. Wait 3 seconds
+7. Infinite loop
+
+Select the visible Roblox window (its title may be **Untitled Window**), send a diagnostic E press, and observe Roblox yourself before starting the loop. Roblox background receipt is not verified and may require the game to be focused.
 
 ## JSON storage
 

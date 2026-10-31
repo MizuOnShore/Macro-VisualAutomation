@@ -11,8 +11,8 @@ public sealed class RecordingWaveform : FrameworkElement
         new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty TintProperty = DependencyProperty.Register(
-        nameof(Tint), typeof(Color), typeof(RecordingWaveform),
-        new FrameworkPropertyMetadata(Color.FromRgb(120, 133, 149), FrameworkPropertyMetadataOptions.AffectsRender));
+        nameof(Tint), typeof(Brush), typeof(RecordingWaveform),
+        new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromRgb(120, 133, 149)), FrameworkPropertyMetadataOptions.AffectsRender));
 
     public int ActionCount
     {
@@ -20,9 +20,9 @@ public sealed class RecordingWaveform : FrameworkElement
         set => SetValue(ActionCountProperty, value);
     }
 
-    public Color Tint
+    public Brush Tint
     {
-        get => (Color)GetValue(TintProperty);
+        get => (Brush)GetValue(TintProperty);
         set => SetValue(TintProperty, value);
     }
 
@@ -48,7 +48,8 @@ public sealed class RecordingWaveform : FrameworkElement
             var barHeight = Math.Max(3, fullHeight * (0.18 + variation * 0.82));
             var barWidth = Math.Max(1, step * 0.52);
             var bar = new Rect(index * step + step * 0.22, (fullHeight - barHeight) / 2, barWidth, barHeight);
-            var brush = new SolidColorBrush(Tint) { Opacity = 0.35 + variation * 0.55 };
+            var brush = Tint.CloneCurrentValue();
+            brush.Opacity = 0.35 + variation * 0.55;
             brush.Freeze();
             context.DrawRoundedRectangle(brush, null, bar, Math.Min(2, barWidth / 2), Math.Min(2, barWidth / 2));
         }

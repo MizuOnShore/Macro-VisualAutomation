@@ -1,9 +1,11 @@
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers
 
 struct MacrosView: View {
     @EnvironmentObject private var model: AppModel
     @State private var searchText = ""
+    @State private var showFavoritesOnly = false
     @State private var showImporter = false
     @State private var showExporter = false
     @State private var exportDocument: MacroJSONDocument?
@@ -12,8 +14,13 @@ struct MacrosView: View {
     @State private var renameText = ""
 
     private var filteredMacros: [MacroDefinition] {
-        guard !searchText.isEmpty else { return model.macros }
-        return model.macros.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        model.macros.filter { macro in
+            let matchesFavorite = !showFavoritesOnly || macro.isFavorite
+            let matchesSearch = searchText.isEmpty
+                || macro.name.localizedCaseInsensitiveContains(searchText)
+                || macro.targetBundleIdentifier?.localizedCaseInsensitiveContains(searchText) == true
+            return matchesFavorite && matchesSearch
+        }
     }
 
     var body: some View {
@@ -43,6 +50,12 @@ struct MacrosView: View {
             }
         }
         .onChange(of: model.selectedMacroID) { _, _ in showActionEditor = false }
+        .onChange(of: showFavoritesOnly) { _, favoritesOnly in
+            guard favoritesOnly,
+                  let selectedMacro = model.selectedMacro,
+                  !selectedMacro.isFavorite else { return }
+            model.selectedMacroID = model.macros.first(where: { $0.isFavorite })?.id
+        }
         .alert("Rename Recording", isPresented: Binding(
             get: { renameMacroID != nil },
             set: { if !$0 { renameMacroID = nil } }
@@ -62,9 +75,9 @@ struct MacrosView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Recordings").font(.title2.weight(.bold))
+                    Text(showFavoritesOnly ? "Favorites" : "Recordings").font(.title2.weight(.bold))
                     Spacer()
-                    Text("\(model.macros.count)")
+                    Text("\(filteredMacros.count)")
                         .font(.caption.weight(.semibold).monospacedDigit())
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
@@ -80,6 +93,13 @@ struct MacrosView: View {
                     .help("Open Recorder · \(model.hotkeys.record.displayName)")
                 }
                 AppSearchField(placeholder: "Search recordings", text: $searchText)
+                Picker("Recording filter", selection: $showFavoritesOnly) {
+                    Label("All", systemImage: "waveform").tag(false)
+                    Label("Favorites", systemImage: "star.fill").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .controlSize(.small)
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
@@ -90,7 +110,21 @@ struct MacrosView: View {
                 ActionList(actions: $model.macros[index].actions)
                 editorFooter
             } else if filteredMacros.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+                if showFavoritesOnly && searchText.isEmpty {
+                    ContentUnavailableView(
+                        "No Favorites Yet",
+                        systemImage: "star",
+                        description: Text("Star a recording to keep it handy here.")
+                    )
+                } else if model.macros.isEmpty {
+                    ContentUnavailableView(
+                        "No Recordings Yet",
+                        systemImage: "waveform",
+                        description: Text("Record or import a macro to get started.")
+                    )
+                } else {
+                    ContentUnavailableView.search(text: searchText)
+                }
             } else {
                 ScrollView {
                     LazyVStack(spacing: 6) {
@@ -98,7 +132,8 @@ struct MacrosView: View {
                             MacroLibraryRow(
                                 macro: macro,
                                 isSelected: model.selectedMacroID == macro.id,
-                                action: { model.selectedMacroID = macro.id }
+                                action: { model.selectedMacroID = macro.id },
+                                onToggleFavorite: { model.toggleFavoriteMacro(id: macro.id) }
                             )
                             .contextMenu {
                                 Button("Play Recording", systemImage: "play.fill") {
@@ -112,6 +147,12 @@ struct MacrosView: View {
                                 Button("Rename", systemImage: "pencil") {
                                     renameText = macro.name
                                     renameMacroID = macro.id
+                                }
+                                Button(
+                                    macro.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                                    systemImage: macro.isFavorite ? "star.slash" : "star"
+                                ) {
+                                    model.toggleFavoriteMacro(id: macro.id)
                                 }
                                 Divider()
                                 Button("Delete Recording", systemImage: "trash", role: .destructive) {
@@ -402,52 +443,126 @@ private struct MacroLibraryRow: View {
     let macro: MacroDefinition
     let isSelected: Bool
     let action: () -> Void
+    let onToggleFavorite: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 8) {
-                    Image(systemName: "waveform")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                    Text(macro.name)
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
+        HStack(spacing: 4) {
+            Button(action: action) {
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "waveform")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                        Text(macro.name)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
 
-                RecordingWaveform(actionCount: macro.actions.count, tint: isSelected ? .accentColor : .secondary)
-                    .frame(height: 28)
+                    RecordingWaveform(actionCount: macro.actions.count, tint: isSelected ? .accentColor : .secondary)
+                        .frame(height: 28)
 
-                HStack(spacing: 6) {
-                    Text("\(macro.actions.count) actions")
-                    Text("·")
-                    Text(macro.loopMode.title)
-                    Spacer(minLength: 0)
-                    Image(systemName: "computermouse")
-                        .foregroundStyle(.tertiary)
+                    HStack(spacing: 6) {
+                        Text("\(macro.actions.count) actions")
+                        Text("·")
+                        Text(macro.loopMode.title)
+                        Spacer(minLength: 0)
+                        Image(systemName: "computermouse")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? MacroTheme.accent.opacity(0.16) : MacroTheme.card.opacity(0.3))
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isSelected ? MacroTheme.accent.opacity(0.65) : MacroTheme.border.opacity(0.45))
+            .buttonStyle(.plain)
+
+            Button(action: onToggleFavorite) {
+                Image(systemName: macro.isFavorite ? "star.fill" : "star")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(macro.isFavorite ? Color.yellow : Color.secondary)
+                    .frame(width: 30, height: 34)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(macro.isFavorite ? "Remove from Favorites" : "Add to Favorites")
+            .accessibilityLabel(macro.isFavorite ? "Remove from Favorites" : "Add to Favorites")
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isSelected ? MacroTheme.accent.opacity(0.16) : MacroTheme.card.opacity(0.3))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isSelected ? MacroTheme.accent.opacity(0.65) : MacroTheme.border.opacity(0.45))
+        }
+        .overlay {
+            GeometryReader { geometry in
+                RightClickSelectionProbe(onSelect: action)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
-        .buttonStyle(.plain)
+    }
+}
+
+private struct RightClickSelectionProbe: NSViewRepresentable {
+    let onSelect: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSelect: onSelect)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.install(on: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onSelect = onSelect
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    final class Coordinator {
+        var onSelect: () -> Void
+        private weak var view: NSView?
+        private var eventMonitor: Any?
+
+        init(onSelect: @escaping () -> Void) {
+            self.onSelect = onSelect
+        }
+
+        func install(on view: NSView) {
+            self.view = view
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+                guard let self,
+                      let view = self.view,
+                      event.window === view.window else { return event }
+                let point = view.convert(event.locationInWindow, from: nil)
+                guard view.bounds.contains(point) else { return event }
+                self.onSelect()
+                return event
+            }
+        }
+
+        func uninstall() {
+            if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
+            eventMonitor = nil
+            view = nil
+        }
     }
 }
 
@@ -670,9 +785,19 @@ private struct ActionRow: View {
                     .frame(width: 32, height: 32)
                     .background(tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 9))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(action.type.title).font(.body.weight(.semibold))
+                    HStack(spacing: 6) {
+                        Text(action.type.title).font(.body.weight(.semibold))
+                        if let label = action.label, !label.isEmpty {
+                            Text(label)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(MacroTheme.accent)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
                     Text(action.summary).font(.caption).foregroundStyle(.secondary)
                 }
+                .frame(minWidth: 0, alignment: .leading)
                 Spacer()
                 if action.delay > 0 {
                     Text("+\(action.delay, specifier: "%.3f")s")
@@ -712,6 +837,14 @@ private struct ActionRow: View {
 
     private var actionEditor: some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 9) {
+            GridRow {
+                Text("Label").foregroundStyle(.secondary)
+                TextField("Optional note, e.g. Open inventory", text: Binding(
+                    get: { action.label ?? "" },
+                    set: { value in action.label = value.isEmpty ? nil : value }
+                ))
+            }
+
             GridRow {
                 Text("Type").foregroundStyle(.secondary)
                 Picker("", selection: $action.type) {

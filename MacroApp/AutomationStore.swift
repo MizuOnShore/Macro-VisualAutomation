@@ -8,6 +8,7 @@ final class AutomationStore: ObservableObject {
     @Published var selectedAutomationID: UUID?
     @Published var selectedNodeID: UUID?
     @Published var selectedConnectionID: UUID?
+    @Published var selectedSectionID: UUID?
     @Published private(set) var runState: AutomationRunState = .idle
     @Published private(set) var activeNodeID: UUID?
     @Published private(set) var completedNodeIDs = Set<UUID>()
@@ -44,6 +45,10 @@ final class AutomationStore: ObservableObject {
         selectedAutomation?.nodes.first { $0.id == selectedNodeID }
     }
 
+    var selectedSection: AutomationSection? {
+        selectedAutomation?.sections.first { $0.id == selectedSectionID }
+    }
+
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
     var canRun: Bool { selectedAutomation?.nodes.contains(where: { $0.kind == .start }) == true }
@@ -71,6 +76,7 @@ final class AutomationStore: ObservableObject {
         selectedAutomationID = id
         selectedNodeID = nil
         selectedConnectionID = nil
+        selectedSectionID = nil
     }
 
     func createAutomation() {
@@ -80,6 +86,7 @@ final class AutomationStore: ObservableObject {
             selectedAutomationID = automation.id
             selectedNodeID = nil
             selectedConnectionID = nil
+            selectedSectionID = nil
             executionHistory = []
             activeExecutionRecordID = nil
         }
@@ -92,6 +99,7 @@ final class AutomationStore: ObservableObject {
             selectedAutomationID = automations.first?.id
             selectedNodeID = nil
             selectedConnectionID = nil
+            selectedSectionID = nil
             executionHistory = []
             activeExecutionRecordID = nil
         }
@@ -125,6 +133,7 @@ final class AutomationStore: ObservableObject {
         }
         selectedNodeID = selectedAutomation?.nodes.last?.id
         selectedConnectionID = nil
+        selectedSectionID = nil
     }
 
     func updateNode(_ nodeID: UUID, _ update: (inout AutomationNode) -> Void) {
@@ -153,9 +162,59 @@ final class AutomationStore: ObservableObject {
         automations[index].lastEdited = .now
     }
 
-    func moveSection(_ sectionID: UUID, by delta: CGSize, containing nodeIDs: Set<UUID>) {
+    func updateSection(_ sectionID: UUID, _ update: (inout AutomationSection) -> Void) {
+        updateAutomation { automation in
+            guard let sectionIndex = automation.sections.firstIndex(where: { $0.id == sectionID }) else { return }
+            update(&automation.sections[sectionIndex])
+        }
+    }
+
+    func setSectionLayout(_ sectionID: UUID, to layout: AutomationSectionLayout) {
+        updateAutomation { automation in
+            guard let sectionIndex = automation.sections.firstIndex(where: { $0.id == sectionID }) else { return }
+            automation.sections[sectionIndex].layout = layout
+            if layout == .vertical {
+                arrangeSectionVertically(sectionID, in: &automation)
+            }
+        }
+    }
+
+    func setSectionPadding(_ sectionID: UUID, to padding: Double) {
+        updateAutomation { automation in
+            guard let sectionIndex = automation.sections.firstIndex(where: { $0.id == sectionID }) else { return }
+            automation.sections[sectionIndex].padding = min(max(padding, 8), 64)
+            if automation.sections[sectionIndex].layout == .vertical {
+                arrangeSectionVertically(sectionID, in: &automation)
+            } else {
+                fitSectionToContents(sectionID, in: &automation)
+            }
+        }
+    }
+
+    func fitSectionToContents(_ sectionID: UUID) {
+        updateAutomation { automation in
+            if automation.sections.first(where: { $0.id == sectionID })?.layout == .vertical {
+                arrangeSectionVertically(sectionID, in: &automation)
+            } else {
+                fitSectionToContents(sectionID, in: &automation)
+            }
+        }
+    }
+
+    func arrangeSectionVertically(_ sectionID: UUID) {
+        updateAutomation { automation in
+            arrangeSectionVertically(sectionID, in: &automation)
+        }
+    }
+
+    func detachAllNodes(from sectionID: UUID) {
+        updateSection(sectionID) { $0.nodeIDs.removeAll() }
+    }
+
+    func moveSection(_ sectionID: UUID, by delta: CGSize) {
         guard canEdit, let index = selectedAutomationIndex,
               let sectionIndex = automations[index].sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        let nodeIDs = automations[index].sections[sectionIndex].nodeIDs
         automations[index].sections[sectionIndex].frame.x += Double(delta.width)
         automations[index].sections[sectionIndex].frame.y += Double(delta.height)
         for nodeIndex in automations[index].nodes.indices where nodeIDs.contains(automations[index].nodes[nodeIndex].id) {
@@ -165,9 +224,57 @@ final class AutomationStore: ObservableObject {
         automations[index].lastEdited = .now
     }
 
+    func setSectionNodeIDs(_ sectionID: UUID, to nodeIDs: Set<UUID>) {
+        guard canEdit, let index = selectedAutomationIndex,
+              let sectionIndex = automations[index].sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        guard automations[index].sections[sectionIndex].nodeIDs != nodeIDs else { return }
+        automations[index].sections[sectionIndex].nodeIDs = nodeIDs
+        automations[index].lastEdited = .now
+    }
+
+    func setSectionFrame(_ sectionID: UUID, to frame: WorkflowFrame) {
+        guard canEdit, let index = selectedAutomationIndex,
+              let sectionIndex = automations[index].sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        automations[index].sections[sectionIndex].frame = frame
+        automations[index].lastEdited = .now
+    }
+
+    func resizeSection(_ sectionID: UUID, from handle: AutomationSectionResizeHandle, by delta: CGSize) {
+        guard canEdit, let index = selectedAutomationIndex,
+              let sectionIndex = automations[index].sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        let minimumWidth = 190.0
+        let minimumHeight = 120.0
+        var frame = automations[index].sections[sectionIndex].frame
+
+        let resizesLeft = handle == .left || handle == .topLeft || handle == .bottomLeft
+        let resizesRight = handle == .right || handle == .topRight || handle == .bottomRight
+        let resizesTop = handle == .top || handle == .topLeft || handle == .topRight
+        let resizesBottom = handle == .bottom || handle == .bottomLeft || handle == .bottomRight
+
+        if resizesLeft {
+            let appliedDelta = min(Double(delta.width), frame.width - minimumWidth)
+            frame.x += appliedDelta
+            frame.width -= appliedDelta
+        } else if resizesRight {
+            frame.width = max(minimumWidth, frame.width + Double(delta.width))
+        }
+
+        if resizesTop {
+            let appliedDelta = min(Double(delta.height), frame.height - minimumHeight)
+            frame.y += appliedDelta
+            frame.height -= appliedDelta
+        } else if resizesBottom {
+            frame.height = max(minimumHeight, frame.height + Double(delta.height))
+        }
+
+        automations[index].sections[sectionIndex].frame = frame
+        automations[index].lastEdited = .now
+    }
+
     func deleteSection(_ sectionID: UUID) {
         guard canEdit else { return }
         updateAutomation { $0.sections.removeAll { $0.id == sectionID } }
+        if selectedSectionID == sectionID { selectedSectionID = nil }
     }
 
     func connect(source: UUID, target: UUID, branch: AutomationBranch? = nil) {
@@ -185,17 +292,26 @@ final class AutomationStore: ObservableObject {
             automation.connections.append(connection)
             selectedConnectionID = connection.id
             selectedNodeID = nil
+            selectedSectionID = nil
         }
     }
 
     func selectNode(_ id: UUID?) {
         selectedNodeID = id
         selectedConnectionID = nil
+        selectedSectionID = nil
     }
 
     func selectConnection(_ id: UUID?) {
         selectedConnectionID = id
         selectedNodeID = nil
+        selectedSectionID = nil
+    }
+
+    func selectSection(_ id: UUID?) {
+        selectedSectionID = id
+        selectedNodeID = nil
+        selectedConnectionID = nil
     }
 
     func setConnectionStyle(_ id: UUID, to style: AutomationConnectionStyle) {
@@ -232,6 +348,9 @@ final class AutomationStore: ObservableObject {
                 automations[automationIndex].connections.removeAll {
                     $0.sourceNodeID == nodeID || $0.targetNodeID == nodeID
                 }
+                for sectionIndex in automations[automationIndex].sections.indices {
+                    automations[automationIndex].sections[sectionIndex].nodeIDs.remove(nodeID)
+                }
                 for index in automations[automationIndex].nodes.indices
                     where automations[automationIndex].nodes[index].repeatTargetNodeID == nodeID {
                     automations[automationIndex].nodes[index].repeatTargetNodeID = nil
@@ -245,6 +364,45 @@ final class AutomationStore: ObservableObject {
                 automations[automationIndex].lastEdited = .now
                 selectedConnectionID = nil
             }
+        } else if let sectionID = selectedSectionID {
+            performMutation {
+                automations[automationIndex].sections.removeAll { $0.id == sectionID }
+                automations[automationIndex].lastEdited = .now
+                selectedSectionID = nil
+            }
+        }
+    }
+
+    func deleteNodes(_ nodeIDs: Set<UUID>) {
+        guard canEdit, !nodeIDs.isEmpty, let automationIndex = selectedAutomationIndex else { return }
+        let protectedStartIDs = Set(
+            automations[automationIndex].nodes
+                .filter { $0.kind == .start }
+                .map(\.id)
+        )
+        let deletableNodeIDs = nodeIDs.subtracting(protectedStartIDs)
+        guard !deletableNodeIDs.isEmpty else { return }
+
+        performMutation {
+            automations[automationIndex].nodes.removeAll { deletableNodeIDs.contains($0.id) }
+            automations[automationIndex].connections.removeAll {
+                deletableNodeIDs.contains($0.sourceNodeID) || deletableNodeIDs.contains($0.targetNodeID)
+            }
+            for sectionIndex in automations[automationIndex].sections.indices {
+                automations[automationIndex].sections[sectionIndex].nodeIDs.subtract(deletableNodeIDs)
+            }
+            for nodeIndex in automations[automationIndex].nodes.indices {
+                if let targetID = automations[automationIndex].nodes[nodeIndex].repeatTargetNodeID,
+                   deletableNodeIDs.contains(targetID) {
+                    automations[automationIndex].nodes[nodeIndex].repeatTargetNodeID = nil
+                }
+                if let targetID = automations[automationIndex].nodes[nodeIndex].jumpTargetNodeID,
+                   deletableNodeIDs.contains(targetID) {
+                    automations[automationIndex].nodes[nodeIndex].jumpTargetNodeID = nil
+                }
+            }
+            automations[automationIndex].lastEdited = .now
+            if selectedNodeID.map(deletableNodeIDs.contains) == true { selectedNodeID = nil }
         }
     }
 
@@ -354,7 +512,12 @@ final class AutomationStore: ObservableObject {
         copy.id = UUID()
         copy.position = WorkflowPoint(x: node.position.x + 36, y: node.position.y + 36)
         copy.customTitle = node.customTitle.map { "\($0) Copy" } ?? "\(node.kind.title) Copy"
-        updateAutomation { $0.nodes.append(copy) }
+        updateAutomation { automation in
+            automation.nodes.append(copy)
+            for sectionIndex in automation.sections.indices where automation.sections[sectionIndex].nodeIDs.contains(nodeID) {
+                automation.sections[sectionIndex].nodeIDs.insert(copy.id)
+            }
+        }
         selectedNodeID = copy.id
     }
 
@@ -454,6 +617,61 @@ final class AutomationStore: ObservableObject {
         if selectedAutomation?.connections.contains(where: { $0.id == selectedConnectionID }) != true {
             selectedConnectionID = nil
         }
+        if selectedAutomation?.sections.contains(where: { $0.id == selectedSectionID }) != true {
+            selectedSectionID = nil
+        }
+    }
+
+    private func arrangeSectionVertically(_ sectionID: UUID, in automation: inout AutomationDefinition) {
+        guard let sectionIndex = automation.sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        let section = automation.sections[sectionIndex]
+        let nodeIDs = section.nodeIDs
+        let orderedNodeIndices = automation.nodes.indices
+            .filter { nodeIDs.contains(automation.nodes[$0].id) }
+            .sorted {
+                let lhs = automation.nodes[$0].position
+                let rhs = automation.nodes[$1].position
+                return lhs.y == rhs.y ? lhs.x < rhs.x : lhs.y < rhs.y
+            }
+        guard !orderedNodeIndices.isEmpty else { return }
+
+        let nodeWidth = 238.0
+        let nodeHeight = 76.0
+        let spacing = 18.0
+        let headerHeight = 34.0
+        let padding = section.padding
+        let width = max(190, nodeWidth + padding * 2)
+        let height = max(120, headerHeight + padding * 2 + nodeHeight * Double(orderedNodeIndices.count) + spacing * Double(max(0, orderedNodeIndices.count - 1)))
+        let centerX = section.frame.x + width / 2
+        var centerY = section.frame.y + headerHeight + padding + nodeHeight / 2
+
+        automation.sections[sectionIndex].frame.width = width
+        automation.sections[sectionIndex].frame.height = height
+        for nodeIndex in orderedNodeIndices {
+            automation.nodes[nodeIndex].position = WorkflowPoint(x: centerX, y: centerY)
+            centerY += nodeHeight + spacing
+        }
+    }
+
+    private func fitSectionToContents(_ sectionID: UUID, in automation: inout AutomationDefinition) {
+        guard let sectionIndex = automation.sections.firstIndex(where: { $0.id == sectionID }) else { return }
+        let section = automation.sections[sectionIndex]
+        let members = automation.nodes.filter { section.nodeIDs.contains($0.id) }
+        guard let first = members.first else { return }
+        let nodeWidth = 238.0
+        let nodeHeight = 76.0
+        let headerHeight = 34.0
+        let padding = section.padding
+        let minX = members.dropFirst().reduce(first.position.x - nodeWidth / 2) { min($0, $1.position.x - nodeWidth / 2) }
+        let maxX = members.dropFirst().reduce(first.position.x + nodeWidth / 2) { max($0, $1.position.x + nodeWidth / 2) }
+        let minY = members.dropFirst().reduce(first.position.y - nodeHeight / 2) { min($0, $1.position.y - nodeHeight / 2) }
+        let maxY = members.dropFirst().reduce(first.position.y + nodeHeight / 2) { max($0, $1.position.y + nodeHeight / 2) }
+        automation.sections[sectionIndex].frame = WorkflowFrame(
+            x: minX - padding,
+            y: minY - headerHeight - padding,
+            width: max(190, maxX - minX + padding * 2),
+            height: max(120, maxY - minY + headerHeight + padding * 2)
+        )
     }
 
     private func schedulePersistence() {

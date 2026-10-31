@@ -83,6 +83,7 @@ enum MacroMouseButton: String, Codable, CaseIterable, Identifiable, Hashable {
 struct MacroAction: Identifiable, Codable, Equatable {
     var id = UUID()
     var type: MacroActionType
+    var label: String?
     var key: String?
     var duration: Double
     var delay: Double = 0
@@ -96,13 +97,14 @@ struct MacroAction: Identifiable, Codable, Equatable {
     var isEnabled = true
 
     private enum CodingKeys: String, CodingKey {
-        case id, type, key, duration, delay, x, y, mouseButton, clickCount
+        case id, type, label, key, duration, delay, x, y, mouseButton, clickCount
         case scrollDeltaX, scrollDeltaY, usesWindowCoordinates, isEnabled
     }
 
     init(
         id: UUID = UUID(),
         type: MacroActionType,
+        label: String? = nil,
         key: String?,
         duration: Double,
         delay: Double = 0,
@@ -117,6 +119,7 @@ struct MacroAction: Identifiable, Codable, Equatable {
     ) {
         self.id = id
         self.type = type
+        self.label = label
         self.key = key
         self.duration = duration
         self.delay = delay
@@ -134,6 +137,7 @@ struct MacroAction: Identifiable, Codable, Equatable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         type = try values.decode(MacroActionType.self, forKey: .type)
+        label = try values.decodeIfPresent(String.self, forKey: .label)
         key = try values.decodeIfPresent(String.self, forKey: .key)
         duration = try values.decodeIfPresent(Double.self, forKey: .duration) ?? 0
         delay = try values.decodeIfPresent(Double.self, forKey: .delay) ?? 0
@@ -174,6 +178,7 @@ enum LoopMode: String, Codable, CaseIterable, Identifiable {
 struct MacroDefinition: Identifiable, Codable, Equatable {
     var id = UUID()
     var name: String
+    var isFavorite = false
     var targetBundleIdentifier: String?
     var actions: [MacroAction]
     var loopMode: LoopMode = .once
@@ -183,13 +188,14 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
     var recordedWindowHeight: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, targetBundleIdentifier, actions, loopMode, loopCount
+        case id, name, isFavorite, targetBundleIdentifier, actions, loopMode, loopCount
         case mousePlaybackMode, recordedWindowWidth, recordedWindowHeight
     }
 
     init(
         id: UUID = UUID(),
         name: String,
+        isFavorite: Bool = false,
         targetBundleIdentifier: String? = nil,
         actions: [MacroAction],
         loopMode: LoopMode = .once,
@@ -200,6 +206,7 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
     ) {
         self.id = id
         self.name = name
+        self.isFavorite = isFavorite
         self.targetBundleIdentifier = targetBundleIdentifier
         self.actions = actions
         self.loopMode = loopMode
@@ -213,6 +220,7 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try values.decodeIfPresent(String.self, forKey: .name) ?? "Imported Macro"
+        isFavorite = try values.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         targetBundleIdentifier = try values.decodeIfPresent(String.self, forKey: .targetBundleIdentifier)
         actions = try values.decodeIfPresent([MacroAction].self, forKey: .actions) ?? []
         loopMode = try values.decodeIfPresent(LoopMode.self, forKey: .loopMode) ?? .once

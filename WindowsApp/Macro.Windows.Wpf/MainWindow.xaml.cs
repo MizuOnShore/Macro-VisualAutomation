@@ -47,6 +47,26 @@ public partial class MainWindow : Window
     private Key stopHotkey = Key.F7;
     private Key playHotkey = Key.F8;
     private string HotkeysPath => Path.Combine(storage.DirectoryPath, "Hotkeys.json");
+    private string AppearancePath => Path.Combine(storage.DirectoryPath, "Appearance.json");
+    private string selectedPalette = "current";
+    private bool loadingAppearance;
+    private string currentPage = "Macros";
+
+    private readonly record struct ThemeColors(
+        string Window, string Toolbar, string Sidebar, string Panel, string Canvas,
+        string Card, string Raised, string Border, string Accent, string Grid);
+
+    private static ThemeColors ColorsFor(string palette) => palette switch
+    {
+        "graphite" => new("#12171D", "#1B222A", "#171D24", "#1E2630", "#10161C",
+                          "#26313C", "#30404D", "#455969", "#6AAEFF", "#647B8A"),
+        "highContrast" => new("#07090B", "#101419", "#0B1015", "#151C24", "#05080B",
+                              "#1D2833", "#293949", "#688097", "#69B5FF", "#7890A3"),
+        _ => new("#060C13", "#09111B", "#081019", "#0A1420", "#050B11",
+                 "#0E1925", "#121F2D", "#1F3348", "#0E79FF", "#30526E")
+    };
+
+    private static Color ParseColor(string hex) => (Color)ColorConverter.ConvertFromString(hex);
 
     private sealed class HotkeySettings
     {
@@ -75,6 +95,7 @@ public partial class MainWindow : Window
         LogList.ItemsSource = logEntries;
         UpdateLogEmptyState();
         Directory.CreateDirectory(storage.DirectoryPath);
+        LoadAppearance();
         LoadHotkeySettings();
         macros = SafeLoad(storage.LoadMacros, []);
         automations = SafeLoad(storage.LoadAutomations, []);
@@ -148,6 +169,7 @@ public partial class MainWindow : Window
 
     private void NavigateTo(string page)
     {
+        currentPage = page;
         MacrosPage.Visibility = page == "Macros" ? Visibility.Visible : Visibility.Collapsed;
         RecorderPage.Visibility = page == "Recorder" ? Visibility.Visible : Visibility.Collapsed;
         TargetPage.Visibility = page == "Target" ? Visibility.Visible : Visibility.Collapsed;
@@ -166,12 +188,7 @@ public partial class MainWindow : Window
         HeaderIconContainer.Visibility = page == "Automation" ? Visibility.Collapsed : Visibility.Visible;
         HeaderStatusBadge.Visibility = page == "Automation" ? Visibility.Collapsed : Visibility.Visible;
         AutomationToolbarTitle.Text = SelectedAutomation?.Name ?? "Automation";
-        foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
-        {
-            var selected = string.Equals(button.Tag?.ToString(), page, StringComparison.Ordinal);
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#1558C5" : "#081019"));
-            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#1558C5" : "#081019"));
-        }
+        RefreshNavigationColors();
         if (page == "Target") RefreshTargets();
         if (page == "Automation") FlowCanvas.Fit();
     }
@@ -1610,16 +1627,96 @@ public partial class MainWindow : Window
         if (sender is FrameworkElement { Tag: string tab }) ShowSettingsTab(tab);
     }
 
+    private void LoadAppearance()
+    {
+        loadingAppearance = true;
+        try
+        {
+            if (File.Exists(AppearancePath))
+                selectedPalette = JsonSerializer.Deserialize<string>(File.ReadAllText(AppearancePath)) ?? "current";
+        }
+        catch (Exception)
+        {
+            selectedPalette = "current";
+        }
+        if (selectedPalette is not ("current" or "graphite" or "highContrast")) selectedPalette = "current";
+        ApplyAppearance();
+        foreach (var item in AppearancePaletteBox.Items.OfType<ComboBoxItem>())
+        {
+            if (Equals(item.Tag, selectedPalette)) AppearancePaletteBox.SelectedItem = item;
+        }
+        loadingAppearance = false;
+    }
+
+    private void AppearancePaletteChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (loadingAppearance || AppearancePaletteBox.SelectedItem is not ComboBoxItem { Tag: string palette }) return;
+        selectedPalette = palette;
+        ApplyAppearance();
+        try { File.WriteAllText(AppearancePath, JsonSerializer.Serialize(selectedPalette)); }
+        catch (Exception ex) { Log($"Could not save appearance setting: {ex.Message}", "Warning"); }
+    }
+
+    private void ApplyAppearance()
+    {
+        var colors = ColorsFor(selectedPalette);
+        var values = new Dictionary<string, string>
+        {
+            ["WindowBrush"] = colors.Window, ["ToolbarBrush"] = colors.Toolbar,
+            ["SidebarBrush"] = colors.Sidebar, ["PanelBrush"] = colors.Panel,
+            ["CanvasBrush"] = colors.Canvas, ["CardBrush"] = colors.Card,
+            ["RaisedBrush"] = colors.Raised, ["BorderBrush"] = colors.Border,
+            ["AccentBrush"] = colors.Accent, ["GridBrush"] = colors.Grid
+        };
+        foreach (var (key, hex) in values)
+            if (Resources[key] is SolidColorBrush brush) brush.Color = ParseColor(hex);
+        Background = (Brush)Resources["WindowBrush"];
+        AppearanceWindowSwatch.Fill = (Brush)Resources["WindowBrush"];
+        AppearancePanelSwatch.Fill = (Brush)Resources["PanelBrush"];
+        AppearanceAccentSwatch.Fill = (Brush)Resources["AccentBrush"];
+        FlowCanvas.CanvasColor = ParseColor(colors.Canvas);
+        FlowCanvas.GridColor = ParseColor(colors.Grid);
+        FlowCanvas.InvalidateVisual();
+        AppearancePaletteDescription.Text = selectedPalette switch
+        {
+            "graphite" => "Softer neutral surfaces",
+            "highContrast" => "Stronger borders and clearer separation",
+            _ => "The original deep blue palette"
+        };
+        RefreshNavigationColors();
+        ShowSettingsTab(SettingsAppearanceContent.Visibility == Visibility.Visible ? "Appearance" :
+            SettingsHotkeysContent.Visibility == Visibility.Visible ? "Hotkeys" :
+            SettingsPermissionsContent.Visibility == Visibility.Visible ? "Permissions" : "General");
+    }
+
+    private void RefreshNavigationColors()
+    {
+        var colors = ColorsFor(selectedPalette);
+        var selected = selectedPalette == "current" ? ParseColor("#1558C5") :
+            Color.FromRgb(
+                (byte)(ParseColor(colors.Accent).R * .55 + ParseColor(colors.Sidebar).R * .45),
+                (byte)(ParseColor(colors.Accent).G * .55 + ParseColor(colors.Sidebar).G * .45),
+                (byte)(ParseColor(colors.Accent).B * .55 + ParseColor(colors.Sidebar).B * .45));
+        foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
+        {
+            var color = Equals(button.Tag, currentPage) ? selected : ParseColor(colors.Sidebar);
+            button.Background = new SolidColorBrush(color);
+            button.BorderBrush = new SolidColorBrush(color);
+        }
+    }
+
     private void ShowSettingsTab(string tab)
     {
         SettingsGeneralContent.Visibility = tab == "General" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsAppearanceContent.Visibility = tab == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
         SettingsHotkeysContent.Visibility = tab == "Hotkeys" ? Visibility.Visible : Visibility.Collapsed;
         SettingsPermissionsContent.Visibility = tab == "Permissions" ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var button in new[] { SettingsGeneralTab, SettingsHotkeysTab, SettingsPermissionsTab })
+        var colors = ColorsFor(selectedPalette);
+        foreach (var button in new[] { SettingsGeneralTab, SettingsAppearanceTab, SettingsHotkeysTab, SettingsPermissionsTab })
         {
             var active = Equals(button.Tag, tab);
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#183A5B" : "#09111B"));
-            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#376284" : "#1F3348"));
+            button.Background = new SolidColorBrush(ParseColor(active && selectedPalette == "current" ? "#183A5B" : active ? colors.Raised : colors.Toolbar));
+            button.BorderBrush = new SolidColorBrush(ParseColor(active && selectedPalette == "current" ? "#376284" : colors.Border));
         }
     }
 

@@ -366,11 +366,90 @@ struct WorkflowFrame: Codable, Equatable {
     var cgRect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
 }
 
+enum AutomationSectionResizeHandle {
+    case top
+    case bottom
+    case left
+    case right
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+}
+
+enum AutomationSectionLayout: String, Codable, CaseIterable, Identifiable {
+    case freeform
+    case vertical
+
+    var id: String { rawValue }
+    var title: String { self == .freeform ? "Freeform" : "Vertical Auto Layout" }
+}
+
+enum AutomationSectionColor: String, Codable, CaseIterable, Identifiable {
+    case blue
+    case purple
+    case green
+    case orange
+    case pink
+    case gray
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
 struct AutomationSection: Identifiable, Codable, Equatable {
     var id = UUID()
     var title: String
     /// Canvas-space bounds, with the origin at the frame's top-left corner.
     var frame: WorkflowFrame
+    /// Persistent membership keeps a section behaving like a real container
+    /// when it is moved or manually resized.
+    var nodeIDs: Set<UUID> = []
+    var color: AutomationSectionColor = .blue
+    var padding: Double = 20
+    var layout: AutomationSectionLayout = .freeform
+
+    private enum CodingKeys: String, CodingKey { case id, title, frame, nodeIDs, color, padding, layout }
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        frame: WorkflowFrame,
+        nodeIDs: Set<UUID> = [],
+        color: AutomationSectionColor = .blue,
+        padding: Double = 20,
+        layout: AutomationSectionLayout = .freeform
+    ) {
+        self.id = id
+        self.title = title
+        self.frame = frame
+        self.nodeIDs = nodeIDs
+        self.color = color
+        self.padding = padding
+        self.layout = layout
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try values.decodeIfPresent(String.self, forKey: .title) ?? "Section"
+        frame = try values.decode(WorkflowFrame.self, forKey: .frame)
+        nodeIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .nodeIDs) ?? []
+        color = try values.decodeIfPresent(AutomationSectionColor.self, forKey: .color) ?? .blue
+        padding = try values.decodeIfPresent(Double.self, forKey: .padding) ?? 20
+        layout = try values.decodeIfPresent(AutomationSectionLayout.self, forKey: .layout) ?? .freeform
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encode(title, forKey: .title)
+        try values.encode(frame, forKey: .frame)
+        try values.encode(nodeIDs, forKey: .nodeIDs)
+        try values.encode(color, forKey: .color)
+        try values.encode(padding, forKey: .padding)
+        try values.encode(layout, forKey: .layout)
+    }
 }
 
 struct AutomationDefinition: Identifiable, Codable, Equatable {
