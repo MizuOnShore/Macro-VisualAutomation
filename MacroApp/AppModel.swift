@@ -178,6 +178,15 @@ final class AppModel: ObservableObject {
         log("Duplicated macro as \(copy.name)")
     }
 
+    func renameMacro(id: UUID, to name: String) {
+        guard let index = macros.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        macros[index].name = trimmed
+        selectedMacroID = id
+        log("Renamed recording to \(trimmed)")
+    }
+
     func deleteSelectedMacro() {
         guard let index = selectedMacroIndex else { return }
         let name = macros[index].name

@@ -8,6 +8,8 @@ struct MacrosView: View {
     @State private var showExporter = false
     @State private var exportDocument: MacroJSONDocument?
     @State private var showActionEditor = false
+    @State private var renameMacroID: UUID?
+    @State private var renameText = ""
 
     private var filteredMacros: [MacroDefinition] {
         guard !searchText.isEmpty else { return model.macros }
@@ -41,6 +43,19 @@ struct MacrosView: View {
             }
         }
         .onChange(of: model.selectedMacroID) { _, _ in showActionEditor = false }
+        .alert("Rename Recording", isPresented: Binding(
+            get: { renameMacroID != nil },
+            set: { if !$0 { renameMacroID = nil } }
+        )) {
+            TextField("Recording name", text: $renameText)
+            Button("Cancel", role: .cancel) { renameMacroID = nil }
+            Button("Save") {
+                if let id = renameMacroID { model.renameMacro(id: id, to: renameText) }
+                renameMacroID = nil
+            }
+        } message: {
+            Text("Choose a name for this recording.")
+        }
     }
 
     private var macroLibrary: some View {
@@ -86,12 +101,20 @@ struct MacrosView: View {
                                 action: { model.selectedMacroID = macro.id }
                             )
                             .contextMenu {
+                                Button("Play Recording", systemImage: "play.fill") {
+                                    model.selectedMacroID = macro.id
+                                    model.start()
+                                }
                                 Button("Duplicate") {
                                     model.selectedMacroID = macro.id
                                     model.duplicateSelectedMacro()
                                 }
+                                Button("Rename", systemImage: "pencil") {
+                                    renameText = macro.name
+                                    renameMacroID = macro.id
+                                }
                                 Divider()
-                                Button("Delete", role: .destructive) {
+                                Button("Delete Recording", systemImage: "trash", role: .destructive) {
                                     model.selectedMacroID = macro.id
                                     model.deleteSelectedMacro()
                                 }
