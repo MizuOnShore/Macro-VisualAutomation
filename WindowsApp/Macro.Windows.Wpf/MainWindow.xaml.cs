@@ -1254,12 +1254,42 @@ public partial class MainWindow : Window
             item.Click += (_, _) => action();
             menu.Items.Add(item);
         }
+        var canRun = automationRunner.State == RunState.Idle && macroRunner.State == RunState.Idle && !recorder.IsRecording;
+        if (node.Kind is not AutomationNodeKind.Start and not AutomationNodeKind.Note)
+        {
+            AddItem("Run Node", () => RunNodeFromContext(node, true), canRun);
+            AddItem("Run From Here", () => RunNodeFromContext(node, false), canRun);
+            menu.Items.Add(new Separator());
+        }
+        if (node.Kind != AutomationNodeKind.Note)
+        {
+            AddItem("Test Node", () => RunNodeFromContext(node, true), canRun);
+            menu.Items.Add(new Separator());
+        }
         AddItem("Duplicate", () => DuplicateNode(node));
         AddItem("Rename…", () => RenameNode(node));
         AddItem(node.IsEnabled ? "Disable" : "Enable", () => ToggleNodeEnabled(node));
         menu.Items.Add(new Separator());
         AddItem("Delete", () => DeleteNode(this, new RoutedEventArgs()), node.Kind != AutomationNodeKind.Start, "#F06A79");
         return menu;
+    }
+
+    private async void RunNodeFromContext(AutomationNode node, bool onlyNode)
+    {
+        if (SelectedAutomation is not { } automation || !automation.Nodes.Contains(node)) return;
+        if (automationRunner.State != RunState.Idle || macroRunner.State != RunState.Idle || recorder.IsRecording) return;
+        try
+        {
+            var result = await automationRunner.RunAsync(automation, id => macros.FirstOrDefault(m => m.Id == id), ResolveTarget,
+                mode => new WindowsInputBackend(mode), () => targetService.Discover(), macroRunner, node.Id, onlyNode);
+            if (result.Outcome == RunOutcome.Failed)
+                MessageBox.Show(this, result.Error ?? "The node failed.", onlyNode ? "Node test failed" : "Workflow failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Cannot run node", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        UpdateState();
     }
 
     private void DuplicateNode(AutomationNode node)

@@ -146,7 +146,9 @@ public sealed class AutomationRunner
         Func<AutomationNode, MacroDefinition, TargetWindow?> targetResolver,
         Func<MousePlaybackMode, IInputBackend> backendResolver,
         Func<IReadOnlyList<TargetWindow>> windowResolver,
-        MacroRunner macroRunner)
+        MacroRunner macroRunner,
+        Guid? startNodeId = null,
+        bool singleNode = false)
     {
         if (State != RunState.Idle) throw new InvalidOperationException("An automation is already running.");
         cancellation = new(); State = RunState.Running; paused = false;
@@ -156,7 +158,9 @@ public sealed class AutomationRunner
         var repeatCounts = new Dictionary<Guid, int>();
         try
         {
-            var current = automation.Nodes.Single(n => n.Kind == AutomationNodeKind.Start);
+            var current = startNodeId is Guid nodeId
+                ? automation.Nodes.Single(n => n.Id == nodeId)
+                : automation.Nodes.Single(n => n.Kind == AutomationNodeKind.Start);
             var safety = 0;
             while (true)
             {
@@ -165,7 +169,7 @@ public sealed class AutomationRunner
                 if (++safety > 1_000_000) throw new InvalidOperationException("Workflow exceeded the safety step limit.");
                 ActiveNodeId = current.Id; ActiveNodeChanged?.Invoke(current.Id);
                 Log("Running " + current.Title);
-                if (!current.IsEnabled) { current = Next(automation, current, null); continue; }
+                if (!current.IsEnabled) { if (singleNode) return new(RunOutcome.Completed); current = Next(automation, current, null); continue; }
                 switch (current.Kind)
                 {
                     case AutomationNodeKind.Stop:
@@ -208,8 +212,10 @@ public sealed class AutomationRunner
                                 (current.ConditionElapsedMilliseconds ?? current.ConditionDuration * current.UnitSeconds * 1000),
                             _ => current.ConditionMacroID.HasValue && runCounts.GetValueOrDefault(current.ConditionMacroID.Value) >= current.ConditionMacroRunCount
                         };
+                        if (singleNode) return new(RunOutcome.Completed);
                         current = Next(automation, current, answer ? AutomationBranch.Yes : AutomationBranch.No); continue;
                     case AutomationNodeKind.RepeatFlow:
+                        if (singleNode) return new(RunOutcome.Completed);
                         var count = repeatCounts.GetValueOrDefault(current.Id);
                         if ((current.RepeatInfinitely || count < Math.Max(0, current.RepeatCount)) && current.RepeatTargetNodeID is Guid repeatId)
                         {
@@ -218,10 +224,12 @@ public sealed class AutomationRunner
                         }
                         repeatCounts.Remove(current.Id); break;
                     case AutomationNodeKind.LoopBack:
+                        if (singleNode) return new(RunOutcome.Completed);
                         if (current.JumpTargetNodeID is Guid jumpId)
                         { current = automation.Nodes.Single(n => n.Id == jumpId); continue; }
                         break;
                 }
+                if (singleNode) return new(RunOutcome.Completed);
                 current = Next(automation, current, null);
             }
         }

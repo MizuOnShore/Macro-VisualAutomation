@@ -7,7 +7,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("macro playback and held-input cleanup", RunnerCleanup),
     ("multi-click event ordering", MultiClickOrdering),
     ("pause excludes paused time", PauseTiming),
-    ("workflow validation and execution", WorkflowRun)
+    ("workflow validation and execution", WorkflowRun),
+    ("run and test from selected workflow node", WorkflowNodeRun)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -81,6 +82,27 @@ static async Task WorkflowRun()
     var backend = new FakeBackend(); var engine = new AutomationRunner();
     var result = await engine.RunAsync(flow, id => id == macro.Id ? macro : null, (_, _) => Target(), _ => backend, () => [Target()], new MacroRunner());
     Assert(result.Outcome == RunOutcome.Completed && backend.Events.SequenceEqual(["down:e", "up:e"]), "Workflow did not execute its macro.");
+}
+
+static async Task WorkflowNodeRun()
+{
+    var macro = new MacroDefinition { Actions = [new() { Type = MacroActionType.KeyPress, Key = "e", Duration = .01 }] };
+    var node = new AutomationNode { Kind = AutomationNodeKind.Macro, MacroID = macro.Id };
+    var stop = new AutomationNode { Kind = AutomationNodeKind.Stop };
+    var flow = new AutomationDefinition
+    {
+        Nodes = [node, stop],
+        Connections = [new() { SourceNodeID = node.Id, TargetNodeID = stop.Id }]
+    };
+    var backend = new FakeBackend();
+    var engine = new AutomationRunner();
+    Task<MacroRunResult> Execute(bool singleNode) => engine.RunAsync(flow, id => id == macro.Id ? macro : null,
+        (_, _) => Target(), _ => backend, () => [Target()], new MacroRunner(), node.Id, singleNode);
+    Assert((await Execute(true)).Outcome == RunOutcome.Completed, "Single-node test did not complete.");
+    Assert(backend.Events.SequenceEqual(["down:e", "up:e"]), "Single-node test did not run the selected macro.");
+    backend.Events.Clear();
+    Assert((await Execute(false)).Outcome == RunOutcome.Completed, "Run From Here did not reach Stop.");
+    Assert(backend.Events.SequenceEqual(["down:e", "up:e"]), "Run From Here did not run the selected macro.");
 }
 
 static TargetWindow Target() => new(1, "Test", "Window", 1, "test", 10, 20, 800, 600);
