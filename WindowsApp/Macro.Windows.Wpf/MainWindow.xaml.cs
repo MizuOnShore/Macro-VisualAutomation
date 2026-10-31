@@ -91,6 +91,7 @@ public partial class MainWindow : Window
         {
             RecordState.Text = $"RECORDING · {count} ACTIONS";
             RecordTitle.Text = "Capturing input";
+            RecordDescription.Text = $"{count} actions captured. Use Stop or F7 when you are finished.";
         });
 
         SourceInitialized += (_, _) =>
@@ -147,8 +148,8 @@ public partial class MainWindow : Window
         foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
         {
             var selected = string.Equals(button.Tag?.ToString(), page, StringComparison.Ordinal);
-            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#143955" : "#081827"));
-            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#245B82" : "#081827"));
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#1558C5" : "#081019"));
+            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#1558C5" : "#081019"));
         }
         if (page == "Target") RefreshTargets();
         if (page == "Automation") FlowCanvas.Fit();
@@ -255,6 +256,7 @@ public partial class MainWindow : Window
         BackgroundModeButton.IsEnabled = CompatibilityModeButton.IsEnabled = !busy && SelectedMacro is not null;
         PauseButton.IsEnabled = state != RunState.Idle;
         StopButton.IsEnabled = busy;
+        RecordButton.IsEnabled = RecordMainButton.IsEnabled = recorder.IsRecording || recordingCountdown is not null || state == RunState.Idle;
     }
 
     private void SetStatus(string text, string color)
@@ -616,8 +618,13 @@ public partial class MainWindow : Window
             for (var i = 3; i > 0; i--)
             {
                 RecordState.Text = $"STARTING IN {i}";
+                RecordState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4053"));
                 RecordTitle.Text = "Switch to your target window";
                 RecordDescription.Text = "Recording will begin automatically after the countdown.";
+                RecordMainButton.Content = "×  Cancel Countdown";
+                RecordButton.Content = "×";
+                RecordHotkey.Text = "F7";
+                ViewSavedMacroButton.Visibility = Visibility.Collapsed;
                 await Task.Delay(1000, token);
             }
             recorder.Start(selectedTarget);
@@ -625,6 +632,7 @@ public partial class MainWindow : Window
             RecordTitle.Text = "Capturing input";
             RecordDescription.Text = "Press F7 or Stop when you are finished.";
             RecordMainButton.Content = "■  Stop Recording";
+            RecordButton.Content = "■";
             UpdateState();
         }
         catch (OperationCanceledException)
@@ -676,9 +684,17 @@ public partial class MainWindow : Window
     private void ResetRecorderUi(string message)
     {
         RecordState.Text = message.ToUpperInvariant();
+        RecordState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+            message.StartsWith("Saved", StringComparison.OrdinalIgnoreCase) ? "#28C775" : "#8DA3B8"));
         RecordTitle.Text = "Create the next sequence";
-        RecordDescription.Text = "Start here, switch to your target window, and perform the keyboard and mouse actions you want to replay.";
+        RecordDescription.Text = message == "Recording cancelled"
+            ? "Start here, switch to your target window, and perform the keyboard and mouse actions you want to replay."
+            : message;
         RecordMainButton.Content = "●  Start Recording";
+        RecordButton.Content = "◎";
+        RecordHotkey.Text = "F6";
+        ViewSavedMacroButton.Visibility = message.StartsWith("Saved", StringComparison.OrdinalIgnoreCase)
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void RefreshTargets(object? sender = null, RoutedEventArgs? e = null)
@@ -723,10 +739,11 @@ public partial class MainWindow : Window
         InspectorTarget.Text = target.ApplicationName;
         SidebarTarget.Text = target.ApplicationName;
         SidebarTargetSub.Text = target.WindowTitle;
-        RecorderTarget.Text = "◎  " + target.ApplicationName;
+        RecorderTarget.Text = target.ApplicationName;
+        RecorderTargetSub.Text = "Mouse positions are window-relative";
+        RecorderTargetIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28C775"));
         UpdateMacroInspectorDetails();
         UpdateState();
-        RecorderModeText.Text = target.ApplicationName;
         TargetTitle.Text = target.ApplicationName;
         TargetSubtitle.Text = target.WindowTitle;
         DiagnosticText.Text = $"Selected · PID {target.ProcessId} · {target.Width} × {target.Height}";
@@ -743,8 +760,9 @@ public partial class MainWindow : Window
         DiagnosticText.Text = "";
         SidebarTarget.Text = "No target";
         SidebarTargetSub.Text = "Choose a window";
-        RecorderTarget.Text = "◎  No target selected";
-        RecorderModeText.Text = "No target";
+        RecorderTarget.Text = "No target selected";
+        RecorderTargetSub.Text = "Mouse positions use screen coordinates";
+        RecorderTargetIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E69527"));
         OverviewTarget.Text = "No target selected";
         InspectorTarget.Text = "No target selected";
         UpdateMacroInspectorDetails();

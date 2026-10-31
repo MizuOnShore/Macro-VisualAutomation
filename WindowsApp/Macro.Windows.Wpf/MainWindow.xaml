@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Macro.Windows" x:Class="Macro.Windows.MainWindow" Title="Macro &#x2014; Automation Studio" Width="1240" Height="760" MinWidth="920" MinHeight="600" WindowStartupLocation="Manual" WindowStyle="SingleBorderWindow" ResizeMode="CanResize" UseLayoutRounding="True" SnapsToDevicePixels="True" Background="#07121D" Foreground="#F4F7FA" FontFamily="Segoe UI" FontSize="14">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Macro.Windows" x:Class="Macro.Windows.MainWindow" Title="Macro &#x2014; Automation Studio" Width="1240" Height="760" MinWidth="920" MinHeight="600" WindowStartupLocation="Manual" WindowStyle="SingleBorderWindow" ResizeMode="CanResize" UseLayoutRounding="True" SnapsToDevicePixels="True" Background="#060C13" Foreground="#F4F7FA" FontFamily="Segoe UI" FontSize="13">
   <Window.Icon>
     <DrawingImage>
       <DrawingImage.Drawing>
@@ -14,19 +14,19 @@
     </DrawingImage>
   </Window.Icon>
   <Window.Resources>
-    <SolidColorBrush x:Key="WindowBrush" Color="#07121D"/>
-    <SolidColorBrush x:Key="ToolbarBrush" Color="#091A29"/>
-    <SolidColorBrush x:Key="SidebarBrush" Color="#081827"/>
-    <SolidColorBrush x:Key="PanelBrush" Color="#0A2032"/>
-    <SolidColorBrush x:Key="CardBrush" Color="#0E273B"/>
-    <SolidColorBrush x:Key="RaisedBrush" Color="#153753"/>
-    <SolidColorBrush x:Key="BorderBrush" Color="#1E4563"/>
-    <SolidColorBrush x:Key="AccentBrush" Color="#1785FF"/>
+    <SolidColorBrush x:Key="WindowBrush" Color="#060C13"/>
+    <SolidColorBrush x:Key="ToolbarBrush" Color="#09111B"/>
+    <SolidColorBrush x:Key="SidebarBrush" Color="#081019"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0A1420"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#0E1925"/>
+    <SolidColorBrush x:Key="RaisedBrush" Color="#121F2D"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#1F3348"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#0E79FF"/>
     <SolidColorBrush x:Key="SecondaryBrush" Color="#8DA3B8"/>
     <Style TargetType="Button">
       <Setter Property="Foreground" Value="#F4F7FA"/>
-      <Setter Property="Background" Value="#153753"/>
-      <Setter Property="BorderBrush" Value="#285574"/>
+      <Setter Property="Background" Value="#121F2D"/>
+      <Setter Property="BorderBrush" Value="#1F3348"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="13,8"/>
       <Setter Property="Cursor" Value="Hand"/>
@@ -35,11 +35,11 @@
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="b" Property="Background" Value="#1C4668"/>
+                <Setter TargetName="b" Property="BorderBrush" Value="#42607B"/>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
                 <Setter TargetName="b" Property="Opacity" Value=".78"/>
@@ -53,8 +53,8 @@
       </Setter>
     </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Background" Value="#147EF5"/>
-      <Setter Property="BorderBrush" Value="#2992FF"/>
+      <Setter Property="Background" Value="#0E79FF"/>
+      <Setter Property="BorderBrush" Value="#2085FF"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -65,15 +65,15 @@
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderBrush" Value="Transparent"/>
       <Setter Property="HorizontalContentAlignment" Value="Left"/>
-      <Setter Property="Padding" Value="14,11"/>
-      <Setter Property="Margin" Value="8,2"/>
-      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Margin" Value="8,1"/>
+      <Setter Property="FontSize" Value="13"/>
     </Style>
     <Style TargetType="TextBox">
-      <Setter Property="Background" Value="#102C43"/>
+      <Setter Property="Background" Value="#121F2D"/>
       <Setter Property="Foreground" Value="#F5F8FA"/>
       <Setter Property="CaretBrush" Value="White"/>
-      <Setter Property="BorderBrush" Value="#285574"/>
+      <Setter Property="BorderBrush" Value="#1F3348"/>
       <Setter Property="Padding" Value="10,7"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="SelectionBrush" Value="#317FD1"/>
@@ -81,12 +81,12 @@
     </Style>
     <Style x:Key="SearchField" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
       <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="28,5,10,5"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="SearchBorder" Background="#102A40" BorderBrush="#285574" BorderThickness="1" CornerRadius="9"><Grid><TextBlock Text="⌕" Foreground="#708AA1" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,1"/><ScrollViewer x:Name="PART_ContentHost" Margin="27,0,8,0" VerticalAlignment="Center"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="SearchBorder" Property="BorderBrush" Value="#1785FF"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="SearchBorder" Background="#101C2A" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="9"><Grid><TextBlock Text="⌕" Foreground="#708AA1" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,1"/><ScrollViewer x:Name="PART_ContentHost" Margin="27,0,8,0" VerticalAlignment="Center"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="SearchBorder" Property="BorderBrush" Value="#0E79FF"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="ComboBox">
-      <Setter Property="Background" Value="#153753"/>
+      <Setter Property="Background" Value="#121F2D"/>
       <Setter Property="Foreground" Value="#F5F8FA"/>
-      <Setter Property="BorderBrush" Value="#285574"/>
+      <Setter Property="BorderBrush" Value="#1F3348"/>
       <Setter Property="Padding" Value="8,5"/>
       <Setter Property="MinHeight" Value="34"/>
       <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -197,7 +197,7 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="72"/>
           <RowDefinition Height="*"/>
-          <RowDefinition Height="112"/>
+          <RowDefinition Height="84"/>
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal" Margin="14,13,8,10">
           <Border Width="38" Height="38" CornerRadius="11" Background="#E7334A">
@@ -211,48 +211,48 @@
             <TextBlock Text="Automation studio" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
           </StackPanel>
         </StackPanel>
-        <StackPanel Grid.Row="1" Margin="0,12">
+        <StackPanel Grid.Row="1" Margin="0,0">
           <Button x:Name="NavMacros" Style="{StaticResource NavButton}" Tag="Macros" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x2318;" FontSize="18" Width="32"/>
+              <TextBlock Text="&#x2318;" FontSize="15" Width="24"/>
               <TextBlock Text="Macros" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavRecorder" Style="{StaticResource NavButton}" Tag="Recorder" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x25CF;" Foreground="#EF4053" FontSize="16" Width="32"/>
+              <TextBlock Text="&#x25CE;" FontSize="15" Width="24"/>
               <TextBlock Text="Recorder" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavTarget" Style="{StaticResource NavButton}" Tag="Target" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x25CE;" Foreground="#43BDE0" FontSize="18" Width="32"/>
+              <TextBlock Text="&#x25AD;" FontSize="16" Width="24"/>
               <TextBlock Text="Target" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavLogs" Style="{StaticResource NavButton}" Tag="Logs" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x2261;" FontSize="20" Width="32"/>
+              <TextBlock Text="&#x2261;" FontSize="17" Width="24"/>
               <TextBlock Text="Logs" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavAutomation" Style="{StaticResource NavButton}" Tag="Automation" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x25C7;" Foreground="#A774FF" FontSize="18" Width="32"/>
+              <TextBlock Text="&#x26AF;" FontSize="16" Width="24"/>
               <TextBlock Text="Automation" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="Settings" Click="Navigate">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#x2699;" FontSize="17" Width="32"/>
+              <TextBlock Text="&#x2699;" FontSize="15" Width="24"/>
               <TextBlock Text="Settings" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
-        <Border Grid.Row="2" BorderBrush="#17364E" BorderThickness="0,1,0,0" Padding="12">
+        <Border Grid.Row="2" BorderBrush="#1F3348" BorderThickness="0,1,0,0" Padding="10">
           <StackPanel>
             <StackPanel Orientation="Horizontal">
-              <Border Width="34" Height="34" CornerRadius="10" Background="#12324B">
+              <Border Width="30" Height="30" CornerRadius="9" Background="#11283F">
                 <TextBlock Text="&#x25CE;" Foreground="#6E8498" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <StackPanel Margin="9,0,0,0">
@@ -260,7 +260,7 @@
                 <TextBlock x:Name="SidebarTargetSub" Text="Choose a window" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
               </StackPanel>
             </StackPanel>
-            <Separator Margin="0,13,0,9" Background="#21425B"/>
+            <Separator Margin="0,8,0,7" Background="#1F3348"/>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -287,11 +287,11 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Border x:Name="HeaderIconContainer" Width="34" Height="34" CornerRadius="9" Background="#133B63">
-              <TextBlock x:Name="HeaderIcon" Text="&#x2318;" Foreground="{StaticResource AccentBrush}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border x:Name="HeaderIconContainer" Width="30" Height="30" CornerRadius="8" Background="#0D263C">
+              <TextBlock x:Name="HeaderIcon" Text="&#x2318;" Foreground="{StaticResource AccentBrush}" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
-            <TextBlock x:Name="HeaderTitle" Text="Macros" FontSize="18" FontWeight="SemiBold" Margin="10,0,14,0" VerticalAlignment="Center"/>
-            <Border x:Name="HeaderStatusBadge" Background="#102A3E" CornerRadius="14" Padding="10,5">
+            <TextBlock x:Name="HeaderTitle" Text="Macros" FontSize="15" FontWeight="SemiBold" Margin="10,0,14,0" VerticalAlignment="Center"/>
+            <Border x:Name="HeaderStatusBadge" Background="#152231" CornerRadius="14" Padding="10,5">
               <StackPanel Orientation="Horizontal">
                 <Ellipse x:Name="HeaderDot" Width="7" Height="7" Fill="#6E8498" Margin="0,0,7,0"/>
                 <TextBlock x:Name="HeaderStatus" Text="Ready" FontSize="12"/>
@@ -299,7 +299,7 @@
             </Border>
           </StackPanel>
           <StackPanel x:Name="HeaderRunControls" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Click="PlayClicked" Padding="16,8" Margin="0,0,8,0">&#x25B6;  Play</Button>
+            <Button x:Name="PlayButton" Click="PlayClicked" Padding="13,6" Margin="0,0,8,0">&#x25B6;  Play</Button>
             <Button x:Name="PauseButton" Click="PauseClicked" Width="40" Margin="0,0,8,0">&#x2161;</Button>
             <Button x:Name="StopButton" Click="StopClicked" Width="40">&#x25A0;</Button>
           </StackPanel>
@@ -454,58 +454,61 @@
         </Grid>
         <!-- RECORDER -->
         <ScrollViewer x:Name="RecorderPage" Visibility="Collapsed">
-          <StackPanel MaxWidth="860" Margin="28" HorizontalAlignment="Stretch">
+          <StackPanel MaxWidth="850" Margin="28" HorizontalAlignment="Center">
             <TextBlock Text="CAPTURE" Style="{StaticResource Section}"/>
-            <TextBlock Text="Recorder" FontSize="34" FontWeight="Bold"/>
-            <TextBlock Text="Keyboard, mouse clicks, pointer movement, and timing&#x2014;captured automatically." Foreground="{StaticResource SecondaryBrush}" FontSize="15" Margin="0,4,0,22"/>
-            <Border Style="{StaticResource Card}" Padding="26">
+            <TextBlock Text="Recorder" FontSize="28" FontWeight="Bold"/>
+            <TextBlock Text="Keyboard, mouse clicks, pointer movement, and timing&#x2014;captured automatically." Foreground="{StaticResource SecondaryBrush}" FontSize="13" Margin="0,4,0,18"/>
+            <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="14" Padding="24">
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="150"/>
+                  <ColumnDefinition Width="126"/>
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid Width="126" Height="126">
-                  <Ellipse Fill="#281520" Stroke="#6E2B3A"/>
-                  <Button x:Name="RecordButton" Click="RecordClicked" Width="76" Height="76" Background="#E7354D" BorderBrush="#F16376" FontSize="28">&#x25CF;</Button>
+                  <Ellipse Fill="#281620"/>
+                  <Ellipse Width="105" Height="105" Fill="Transparent" Stroke="#6E2B3A" StrokeThickness="1"/>
+                  <Button x:Name="RecordButton" Click="RecordClicked" Width="76" Height="76" Background="#25151E" BorderBrush="#8D2537" Foreground="#F13B51" FontSize="29">◎
+                    <Button.Template><ControlTemplate TargetType="Button"><Grid><Ellipse x:Name="RecordSurface" Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1"/><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="RecordSurface" Property="Fill" Value="#381A28"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="RecordSurface" Property="Opacity" Value=".75"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value=".4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template>
+                  </Button>
                 </Grid>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
-                  <TextBlock x:Name="RecordState" Text="READY TO RECORD" Foreground="#EF4053" FontSize="11" FontWeight="Bold"/>
-                  <TextBlock x:Name="RecordTitle" Text="Create the next sequence" FontSize="26" FontWeight="Bold" Margin="0,7"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="28,0,0,0">
+                  <TextBlock x:Name="RecordState" Text="●  READY TO RECORD" Foreground="#8DA3B8" FontSize="11" FontWeight="Bold"/>
+                  <TextBlock x:Name="RecordTitle" Text="Create the next sequence" FontSize="22" FontWeight="Bold" Margin="0,7"/>
                   <TextBlock x:Name="RecordDescription" Text="Start here, switch to your target window, and perform the keyboard and mouse actions you want to replay." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
-                  <UniformGrid Columns="3" Margin="0,14,0,0"><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="0,0,5,0"><StackPanel><TextBlock Text="KEYBOARD" Style="{StaticResource Section}"/><TextBlock Text="Global hook" FontSize="11"/></StackPanel></Border><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="3,0"><StackPanel><TextBlock Text="MOUSE" Style="{StaticResource Section}"/><TextBlock Text="Global hook" FontSize="11"/></StackPanel></Border><Border Background="#102C43" CornerRadius="8" Padding="9" Margin="5,0,0,0"><StackPanel><TextBlock Text="TARGET" Style="{StaticResource Section}"/><TextBlock x:Name="RecorderModeText" Text="No target" FontSize="11" TextTrimming="CharacterEllipsis"/></StackPanel></Border></UniformGrid>
                   <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
-                    <Button x:Name="RecordMainButton" Style="{StaticResource PrimaryButton}" Click="RecordClicked">&#x25CF;  Start Recording</Button>
-                    <Border Background="#153753" CornerRadius="7" Padding="10,7" Margin="10,0,0,0">
-                      <TextBlock Text="F6" FontWeight="SemiBold"/>
+                    <Button x:Name="RecordMainButton" Style="{StaticResource PrimaryButton}" Click="RecordClicked" Width="170" Height="32" Padding="6,4">&#x25CF;  Start Recording</Button>
+                    <Border Background="#121F2D" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="10,0,0,0">
+                      <TextBlock x:Name="RecordHotkey" Text="F6" FontSize="11" FontWeight="SemiBold"/>
                     </Border>
                   </StackPanel>
+                  <Button x:Name="ViewSavedMacroButton" Tag="Macros" Click="Navigate" Visibility="Collapsed" HorizontalAlignment="Left" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" Margin="0,7,0,0" Padding="0,5">▣  View saved macro</Button>
                 </StackPanel>
               </Grid>
             </Border>
             <UniformGrid Columns="2" Margin="0,14">
-              <Border Style="{StaticResource Card}" Margin="0,0,7,0">
-                <StackPanel>
-                  <TextBlock Text="&#x303D;  New macro for every recording" FontWeight="SemiBold"/>
-                  <TextBlock Text="Saved and selected automatically when you press Stop" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,5,0,0"/>
-                </StackPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="13" Padding="14" Margin="0,0,7,0">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Border Width="38" Height="38" CornerRadius="10" Background="#11283F" HorizontalAlignment="Left"><TextBlock Text="≋" Foreground="#0E79FF" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="New macro for every recording" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="Saved and selected automatically when you press Stop" Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/></StackPanel>
+                </Grid>
               </Border>
-              <Border Style="{StaticResource Card}" Margin="7,0,0,0">
-                <StackPanel>
-                  <TextBlock x:Name="RecorderTarget" Text="&#x25CE;  No target selected" FontWeight="SemiBold"/>
-                  <TextBlock Text="Select a target for window-relative mouse positions" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,5,0,0"/>
-                </StackPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="13" Padding="14" Margin="7,0,0,0">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Border Width="38" Height="38" CornerRadius="10" Background="#2A2118" HorizontalAlignment="Left"><TextBlock x:Name="RecorderTargetIcon" Text="◎" Foreground="#E69527" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock x:Name="RecorderTarget" Text="No target selected" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="RecorderTargetSub" Text="Mouse positions use screen coordinates" Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/></StackPanel>
+                </Grid>
               </Border>
             </UniformGrid>
             <TextBlock Text="GLOBAL CONTROLS" Style="{StaticResource Section}" Margin="0,16,0,8"/>
             <UniformGrid Columns="3">
-              <Border Style="{StaticResource Card}" Margin="0,0,7,0">
-                <DockPanel><TextBlock Text="F6" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25CF;  Record"/></DockPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="10" Margin="0,0,7,0">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Width="28" Height="28" CornerRadius="7" Background="#2A1720"><TextBlock Text="◎" Foreground="#EF3348" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Grid.Column="1" Text="Record" FontWeight="SemiBold" VerticalAlignment="Center"/><Border Grid.Column="2" Background="#121F2D" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="5" Padding="5,3"><TextBlock Text="F6" FontSize="10"/></Border></Grid>
               </Border>
-              <Border Style="{StaticResource Card}" Margin="7,0">
-                <DockPanel><TextBlock Text="F7" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25A0;  Stop"/></DockPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="10" Margin="7,0">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Width="28" Height="28" CornerRadius="7" Background="#2C2219"><TextBlock Text="■" Foreground="#ED952A" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Grid.Column="1" Text="Stop" FontWeight="SemiBold" VerticalAlignment="Center"/><Border Grid.Column="2" Background="#121F2D" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="5" Padding="5,3"><TextBlock Text="F7" FontSize="10"/></Border></Grid>
               </Border>
-              <Border Style="{StaticResource Card}" Margin="7,0,0,0">
-                <DockPanel><TextBlock Text="F8" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25B6;  Play"/></DockPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="10" Margin="7,0,0,0">
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Width="28" Height="28" CornerRadius="7" Background="#122D26"><TextBlock Text="▶" Foreground="#28C775" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Grid.Column="1" Text="Play" FontWeight="SemiBold" VerticalAlignment="Center"/><Border Grid.Column="2" Background="#121F2D" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="5" Padding="5,3"><TextBlock Text="F8" FontSize="10"/></Border></Grid>
               </Border>
             </UniformGrid>
           </StackPanel>

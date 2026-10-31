@@ -22,7 +22,7 @@ public partial class App : Application
         base.OnStartup(e);
         if (captureUi)
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, async () =>
             {
                 if (captureIndex + 1 >= e.Args.Length || Current.MainWindow is not MainWindow window)
                 {
@@ -31,9 +31,10 @@ public partial class App : Application
                 }
                 var directory = e.Args[captureIndex + 1];
                 Directory.CreateDirectory(directory);
-                void CapturePage(string page, string suffix)
+                async Task CapturePage(string page, string suffix)
                 {
                     window.ShowPageForCapture(page);
+                    await Task.Delay(75);
                     Visual visual = window;
                     var width = window.ActualWidth;
                     var height = window.ActualHeight;
@@ -60,9 +61,9 @@ public partial class App : Application
                     encoder.Save(stream);
                 }
                 foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
-                    CapturePage(page, "");
+                    await CapturePage(page, "");
                 foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
-                    CapturePage(page, "-wide");
+                    await CapturePage(page, "-wide");
                 window.Close();
                 Shutdown(0);
             });
