@@ -55,6 +55,12 @@ public partial class MainWindow : Window
         Directory.CreateDirectory(storage.DirectoryPath);
         macros = SafeLoad(storage.LoadMacros, [MacroDefinition.Example()]);
         automations = SafeLoad(storage.LoadAutomations, [AutomationDefinition.Blank()]);
+        FlowCanvas.MacroDetailResolver = id =>
+        {
+            var macro = macros.FirstOrDefault(item => item.Id == id);
+            return macro is null ? "Choose a macro" : $"{macro.Actions.Count} actions · {macro.MousePlaybackMode}";
+        };
+        FlowCanvas.MacroTitleResolver = id => macros.FirstOrDefault(item => item.Id == id)?.Name ?? "Choose a macro";
 
         LoopModeBox.ItemsSource = Enum.GetValues<LoopMode>();
         PlaybackModeBox.ItemsSource = Enum.GetValues<MousePlaybackMode>();
@@ -134,6 +140,10 @@ public partial class MainWindow : Window
         };
         PlayButton.Content = page == "Automation" ? "▶  Run" : "▶  Play";
         PlayButton.ToolTip = page == "Automation" ? "Run selected workflow" : "Play selected macro";
+        HeaderRunControls.Visibility = page == "Automation" ? Visibility.Collapsed : Visibility.Visible;
+        HeaderIconContainer.Visibility = page == "Automation" ? Visibility.Collapsed : Visibility.Visible;
+        HeaderStatusBadge.Visibility = page == "Automation" ? Visibility.Collapsed : Visibility.Visible;
+        AutomationToolbarTitle.Text = SelectedAutomation?.Name ?? "Automation";
         foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
         {
             var selected = string.Equals(button.Tag?.ToString(), page, StringComparison.Ordinal);
@@ -700,18 +710,40 @@ public partial class MainWindow : Window
     {
         NodeLibrary.Children.Clear();
         var query = AutomationSearch?.Text?.Trim() ?? "";
-        foreach (var kind in Enum.GetValues<AutomationNodeKind>().Where(kind => kind != AutomationNodeKind.Start)
-            .Where(kind => string.IsNullOrWhiteSpace(query) || NodeTitle(kind).Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+        AddLibrarySection("MACROS");
+        foreach (var macro in macros.Where(macro => string.IsNullOrWhiteSpace(query) || macro.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+            NodeLibrary.Children.Add(CreateLibraryButton(macro.Name, $"{macro.Actions.Count} actions · {macro.MousePlaybackMode}", "⚡", "#1785FF", macro));
+        if (NodeLibrary.Children.Count == 1)
         {
-            var button = new Button
-            {
-                Content = NodeTitle(kind), Tag = kind, Margin = new Thickness(0, 0, 0, 7), Padding = new Thickness(10, 7, 10, 7),
-                HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left
-            };
-            button.Click += AddNode;
-            NodeLibrary.Children.Add(button);
+            var empty = new TextBlock { Text = "Record or create a macro first.", Foreground = new SolidColorBrush(Color.FromRgb(141, 163, 184)), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(3, 0, 3, 10) };
+            NodeLibrary.Children.Add(empty);
         }
+        AddLibrarySection("FLOW");
+        foreach (var kind in Enum.GetValues<AutomationNodeKind>()
+            .Where(kind => string.IsNullOrWhiteSpace(query) || NodeTitle(kind).Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+            NodeLibrary.Children.Add(CreateLibraryButton(NodeTitle(kind), FlowSubtitle(kind), NodeGlyph(kind), NodeColorHex(kind), kind));
     }
+
+    private void AddLibrarySection(string title) => NodeLibrary.Children.Add(new TextBlock { Text = title, Foreground = new SolidColorBrush(Color.FromRgb(112, 138, 161)), FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(3, 4, 3, 7) });
+
+    private Button CreateLibraryButton(string title, string subtitle, string glyph, string color, object tag)
+    {
+        var button = new Button { Tag = tag, Margin = new Thickness(0, 0, 0, 5), Padding = new Thickness(7), Background = new SolidColorBrush(Color.FromRgb(14, 39, 59)), BorderBrush = new SolidColorBrush(Color.FromRgb(30, 69, 99)), HorizontalContentAlignment = HorizontalAlignment.Left };
+        var stack = new StackPanel { Orientation = Orientation.Horizontal };
+        var tint = (Color)ColorConverter.ConvertFromString(color);
+        stack.Children.Add(new Border { Width = 27, Height = 27, CornerRadius = new CornerRadius(7), Background = new SolidColorBrush(Color.FromArgb(35, tint.R, tint.G, tint.B)), Child = new TextBlock { Text = glyph, Foreground = new SolidColorBrush(tint), FontWeight = FontWeights.SemiBold, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } });
+        var text = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
+        text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+        text.Children.Add(new TextBlock { Text = subtitle, Foreground = new SolidColorBrush(Color.FromRgb(141, 163, 184)), FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis });
+        stack.Children.Add(text); button.Content = stack; button.Click += AddNode; return button;
+    }
+
+    private static string FlowSubtitle(AutomationNodeKind kind) => kind switch
+    {
+        AutomationNodeKind.Start => "Workflow entry", AutomationNodeKind.Wait => "Pause execution", AutomationNodeKind.WaitForWindow => "Wait for an app window", AutomationNodeKind.IfElse => "Branch on a condition", AutomationNodeKind.Schedule => "Run at a time or interval", AutomationNodeKind.RepeatFlow => "Repeat by count or duration", AutomationNodeKind.LoopBack => "Jump to a shared point", AutomationNodeKind.Merge => "Rejoin alternate paths", AutomationNodeKind.ResetTimer => "Restart elapsed-time conditions", AutomationNodeKind.Stop => "End automation", AutomationNodeKind.Note => "Add an editable canvas note", _ => "Flow node"
+    };
+    private static string NodeGlyph(AutomationNodeKind kind) => kind switch { AutomationNodeKind.Start => "▶", AutomationNodeKind.Stop => "■", AutomationNodeKind.Macro => "⚡", AutomationNodeKind.Wait => "◷", AutomationNodeKind.IfElse => "⑂", AutomationNodeKind.RepeatFlow => "↻", AutomationNodeKind.Schedule => "▣", AutomationNodeKind.LoopBack => "↩", AutomationNodeKind.Merge => "↟", AutomationNodeKind.ResetTimer => "◴", AutomationNodeKind.Note => "▤", _ => "◆" };
+    private static string NodeColorHex(AutomationNodeKind kind) => kind switch { AutomationNodeKind.Start => "#35CB88", AutomationNodeKind.Stop => "#F05C6B", AutomationNodeKind.Macro => "#1785FF", AutomationNodeKind.Wait or AutomationNodeKind.Schedule => "#F4A340", AutomationNodeKind.IfElse => "#B16CFF", AutomationNodeKind.RepeatFlow => "#667EEA", _ => "#43BCD1" };
 
     private void AutomationSelected(object sender, SelectionChangedEventArgs e)
     {
@@ -755,6 +787,8 @@ public partial class MainWindow : Window
         AutomationName.Text = SelectedAutomation?.Name ?? "";
         AutomationDescription.Text = SelectedAutomation?.AutomationDescription ?? "";
         StartModeBox.SelectedItem = SelectedAutomation?.StartMode ?? Macro.Core.AutomationStartMode.Immediately;
+        AutomationToolbarTitle.Text = SelectedAutomation?.Name ?? "Automation";
+        AutomationToolbarMeta.Text = SelectedAutomation is null ? "No workflow selected" : $"{SelectedAutomation.Nodes.Count} nodes · {SelectedAutomation.Connections.Count} connections";
         FlowCanvas.Workflow = SelectedAutomation;
         selectedNode = null;
         loading = false;
@@ -766,6 +800,7 @@ public partial class MainWindow : Window
     {
         var automation = SelectedAutomation;
         AutomationSummary.Text = automation is null ? "0 nodes · 0 connections" : $"{automation.Nodes.Count} nodes · {automation.Connections.Count} connections";
+        AutomationToolbarMeta.Text = automation is null ? "No workflow selected" : $"{automation.Nodes.Count} nodes · {automation.Connections.Count} connections";
         NodeConnectTarget.ItemsSource = automation?.Nodes.Where(node => node.Id != selectedNode?.Id).ToList();
         NodeConnectTarget.DisplayMemberPath = nameof(AutomationNode.Title);
         var errors = automation?.Validate(macros.Select(m => m.Id).ToHashSet()) ?? [];
@@ -793,13 +828,15 @@ public partial class MainWindow : Window
 
     private void AddNode(object sender, RoutedEventArgs e)
     {
-        if (SelectedAutomation is not { } automation || sender is not FrameworkElement { Tag: AutomationNodeKind kind }) return;
+        if (SelectedAutomation is not { } automation || sender is not FrameworkElement element) return;
+        var kind = element.Tag is MacroDefinition ? AutomationNodeKind.Macro : element.Tag is AutomationNodeKind taggedKind ? taggedKind : default;
+        if (element.Tag is not MacroDefinition && element.Tag is not AutomationNodeKind) return;
         var node = new AutomationNode
         {
             Kind = kind,
             Position = new WorkflowPoint { X = 280 + (automation.Nodes.Count % 4) * 205, Y = 110 + (automation.Nodes.Count / 4) * 120 }
         };
-        if (kind == AutomationNodeKind.Macro) node.MacroID = SelectedMacro?.Id ?? macros.FirstOrDefault()?.Id;
+        if (kind == AutomationNodeKind.Macro) node.MacroID = (element.Tag as MacroDefinition)?.Id ?? SelectedMacro?.Id ?? macros.FirstOrDefault()?.Id;
         automation.Nodes.Add(node);
         SelectNode(node);
         RefreshAutomationDetail();
@@ -822,12 +859,14 @@ public partial class MainWindow : Window
         WaitNodeFields.Visibility = node?.Kind == AutomationNodeKind.Wait ? Visibility.Visible : Visibility.Collapsed;
         RepeatNodeFields.Visibility = node?.Kind == AutomationNodeKind.RepeatFlow ? Visibility.Visible : Visibility.Collapsed;
         var hasNode = node is not null;
+        NodeEditorPanel.Visibility = hasNode ? Visibility.Visible : Visibility.Collapsed;
         NodeConnectTarget.IsEnabled = hasNode;
         NodeBranch.IsEnabled = node?.Kind == AutomationNodeKind.IfElse;
         NodeBranch.Visibility = node?.Kind == AutomationNodeKind.IfElse ? Visibility.Visible : Visibility.Collapsed;
         ConnectButton.IsEnabled = hasNode;
         DisconnectButton.IsEnabled = hasNode;
         DeleteNodeButton.IsEnabled = node is not null && node.Kind != AutomationNodeKind.Start;
+        DeleteNodeButton.Visibility = hasNode ? Visibility.Visible : Visibility.Collapsed;
         BuildDynamicNodeFields(node);
         loading = false;
         RefreshAutomationDetail();
@@ -997,6 +1036,21 @@ public partial class MainWindow : Window
     }
 
     private void FitWorkflow(object sender, RoutedEventArgs e) => FlowCanvas.Fit();
+    private void SaveAutomation(object sender, RoutedEventArgs e) => SaveAll();
+    private void ToggleAutomationLibrary(object sender, RoutedEventArgs e)
+    {
+        AutomationLibraryPanel.Visibility = AutomationLibraryPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+    }
+    private void CanvasZoomOut(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(.85); UpdateCanvasZoom(); }
+    private void CanvasZoomIn(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(1.18); UpdateCanvasZoom(); }
+    private void CanvasResetZoom(object sender, RoutedEventArgs e) { FlowCanvas.ResetZoom(); UpdateCanvasZoom(); }
+    private void UpdateCanvasZoom() => CanvasZoomText.Text = $"{FlowCanvas.Zoom * 100:0}%";
+    private void CanvasSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        var query = CanvasSearch.Text.Trim();
+        var match = SelectedAutomation?.Nodes.FirstOrDefault(node => node.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(query)) SelectNode(match);
+    }
     private async void RunAutomation(object sender, RoutedEventArgs e)
     {
         if (SelectedAutomation is not { } automation) return;

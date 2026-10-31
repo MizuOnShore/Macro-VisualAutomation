@@ -7,7 +7,7 @@ namespace Macro.Windows;
 
 internal sealed class WorkflowCanvas : FrameworkElement
 {
-    private const double NodeWidth = 176, NodeHeight = 72;
+    private const double NodeWidth = 220, NodeHeight = 76;
     private readonly Typeface normal = new("Segoe UI"), semibold = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
     private AutomationDefinition? workflow;
     private Guid? selectedNodeId, activeNodeId, draggingNodeId;
@@ -21,10 +21,13 @@ internal sealed class WorkflowCanvas : FrameworkElement
     public event Action<AutomationNode?>? NodeSelected;
     public event Action<AutomationNode, AutomationNode, AutomationBranch?>? ConnectionRequested;
     public event Action? WorkflowChanged;
+    public Func<Guid?, string>? MacroDetailResolver { get; set; }
+    public Func<Guid?, string>? MacroTitleResolver { get; set; }
 
     public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; Fit(); InvalidateVisual(); } }
     public Guid? SelectedNodeId { get => selectedNodeId; set { selectedNodeId = value; InvalidateVisual(); } }
     public Guid? ActiveNodeId { get => activeNodeId; set { activeNodeId = value; InvalidateVisual(); } }
+    public double Zoom => zoom;
 
     public WorkflowCanvas() { Focusable = true; ClipToBounds = true; }
 
@@ -35,6 +38,22 @@ internal sealed class WorkflowCanvas : FrameworkElement
         var minY = workflow.Nodes.Min(n => n.Position.Y); var maxY = workflow.Nodes.Max(n => n.Position.Y) + NodeHeight;
         zoom = Math.Clamp(Math.Min((ActualWidth - 100) / Math.Max(1, maxX - minX), (ActualHeight - 100) / Math.Max(1, maxY - minY)), .45, 1.15);
         pan = new((ActualWidth - (minX + maxX) * zoom) / 2, (ActualHeight - (minY + maxY) * zoom) / 2);
+        InvalidateVisual();
+    }
+
+    public void ZoomBy(double factor)
+    {
+        var center = new Point(ActualWidth / 2, ActualHeight / 2);
+        var before = Logical(center);
+        zoom = Math.Clamp(zoom * factor, .4, 1.8);
+        pan = new(center.X - before.X * zoom, center.Y - before.Y * zoom);
+        InvalidateVisual();
+    }
+
+    public void ResetZoom()
+    {
+        zoom = 1;
+        pan = new(70, 50);
         InvalidateVisual();
     }
 
@@ -79,10 +98,11 @@ internal sealed class WorkflowCanvas : FrameworkElement
         var r = Rect(node); var selected = node.Id == selectedNodeId; var active = node.Id == activeNodeId;
         var accent = KindColor(node.Kind); var fill = new SolidColorBrush(active ? C("0D392A") : selected ? C("102B48") : C("0E2133"));
         dc.DrawRoundedRectangle(fill, new Pen(new SolidColorBrush(active ? C("32D18B") : selected ? C("1785FF") : C("1E405C")), (selected || active ? 2 : 1) / zoom), r, 13, 13);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(35, accent.R, accent.G, accent.B)), null, new Rect(r.X + 11, r.Y + 13, 36, 36), 9, 9);
-        Text(dc, Glyph(node.Kind), new(r.X + 21, r.Y + 21), 15, new SolidColorBrush(accent), semibold);
-        Text(dc, node.Title, new(r.X + 57, r.Y + 14), 13, Brushes.White, semibold);
-        Text(dc, Detail(node), new(r.X + 57, r.Y + 38), 10.5, new SolidColorBrush(C("8CA1B5")), normal);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(35, accent.R, accent.G, accent.B)), null, new Rect(r.X + 12, r.Y + 14, 38, 38), 9, 9);
+        Text(dc, Glyph(node.Kind), new(r.X + 22, r.Y + 23), 15, new SolidColorBrush(accent), semibold);
+        var title = node.Kind == AutomationNodeKind.Macro ? MacroTitleResolver?.Invoke(node.MacroID) ?? node.Title : node.Title;
+        Text(dc, title, new(r.X + 62, r.Y + 15), 13, Brushes.White, semibold);
+        Text(dc, Detail(node), new(r.X + 62, r.Y + 40), 10.5, new SolidColorBrush(C("8CA1B5")), normal);
         if (node.Kind == AutomationNodeKind.IfElse)
         {
             dc.DrawEllipse(new SolidColorBrush(C("33C481")), null, OutputPoint(node, AutomationBranch.Yes), 5 / zoom, 5 / zoom);
@@ -106,7 +126,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
         dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), 2 / zoom) { DashStyle = DashStyles.Dash }, geometry);
         dc.DrawEllipse(new SolidColorBrush(color), null, connectionPointer, 5 / zoom, 5 / zoom);
     }
-    private string Detail(AutomationNode n) => n.Kind switch { AutomationNodeKind.Macro => n.MacroID is null ? "Choose a macro" : "Saved macro", AutomationNodeKind.Wait => $"{n.WaitDuration:0.##} seconds", AutomationNodeKind.RepeatFlow => n.RepeatInfinitely ? "Until stopped" : $"{n.RepeatCount} times", AutomationNodeKind.IfElse => n.ConditionKind.ToString(), _ => n.Kind.ToString() };
+    private string Detail(AutomationNode n) => n.Kind switch { AutomationNodeKind.Macro => n.MacroID is null ? "Choose a macro" : MacroDetailResolver?.Invoke(n.MacroID) ?? "Saved macro", AutomationNodeKind.Wait => $"{n.WaitDuration:0.##} seconds", AutomationNodeKind.RepeatFlow => n.RepeatInfinitely ? "Until stopped" : $"{n.RepeatCount} times", AutomationNodeKind.IfElse => n.ConditionKind.ToString(), _ => n.Kind.ToString() };
     private static string Glyph(AutomationNodeKind k) => k switch { AutomationNodeKind.Start => "▶", AutomationNodeKind.Stop => "■", AutomationNodeKind.Macro => "⚡", AutomationNodeKind.Wait => "◷", AutomationNodeKind.IfElse => "⑂", AutomationNodeKind.RepeatFlow => "↻", AutomationNodeKind.Schedule => "▣", _ => "◆" };
     private static Color KindColor(AutomationNodeKind k) => k switch { AutomationNodeKind.Start => C("35CB88"), AutomationNodeKind.Stop => C("F05C6B"), AutomationNodeKind.Macro => C("1785FF"), AutomationNodeKind.Wait or AutomationNodeKind.Schedule => C("F4A340"), AutomationNodeKind.IfElse => C("B16CFF"), _ => C("43BCD1") };
     private static Rect Rect(AutomationNode n) => new(n.Position.X, n.Position.Y, NodeWidth, NodeHeight);

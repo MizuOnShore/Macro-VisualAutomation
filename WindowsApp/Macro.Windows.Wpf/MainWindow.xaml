@@ -271,18 +271,18 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Border Width="34" Height="34" CornerRadius="9" Background="#133B63">
+            <Border x:Name="HeaderIconContainer" Width="34" Height="34" CornerRadius="9" Background="#133B63">
               <TextBlock x:Name="HeaderIcon" Text="&#x2318;" Foreground="{StaticResource AccentBrush}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <TextBlock x:Name="HeaderTitle" Text="Macros" FontSize="18" FontWeight="SemiBold" Margin="10,0,14,0" VerticalAlignment="Center"/>
-            <Border Background="#102A3E" CornerRadius="14" Padding="10,5">
+            <Border x:Name="HeaderStatusBadge" Background="#102A3E" CornerRadius="14" Padding="10,5">
               <StackPanel Orientation="Horizontal">
                 <Ellipse x:Name="HeaderDot" Width="7" Height="7" Fill="#6E8498" Margin="0,0,7,0"/>
                 <TextBlock x:Name="HeaderStatus" Text="Ready" FontSize="12"/>
               </StackPanel>
             </Border>
           </StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel x:Name="HeaderRunControls" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <Button x:Name="PlayButton" Style="{StaticResource PrimaryButton}" Click="PlayClicked" Padding="16,8" Margin="0,0,8,0">&#x25B6;  Play</Button>
             <Button x:Name="PauseButton" Click="PauseClicked" Width="40" Margin="0,0,8,0">&#x2161;</Button>
             <Button x:Name="StopButton" Click="StopClicked" Width="40">&#x25A0;</Button>
@@ -592,12 +592,23 @@
         </Grid>
         <!-- AUTOMATION -->
         <Grid x:Name="AutomationPage" Visibility="Collapsed">
+          <Grid.RowDefinitions><RowDefinition Height="58"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="AutomationLibraryColumn" Width="220"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition x:Name="AutomationInspectorColumn" Width="285"/>
           </Grid.ColumnDefinitions>
-          <Border Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="13">
+          <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#091A29" BorderBrush="#17364E" BorderThickness="0,0,0,1" Padding="10">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Button Click="ToggleAutomationLibrary" Padding="8,6" ToolTip="Automation library">☰</Button>
+              <Border Grid.Column="1" Width="30" Height="30" CornerRadius="8" Background="#133B63" Margin="8,0"><TextBlock Text="⌘" Foreground="#4C9CFF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+              <StackPanel Grid.Column="2" VerticalAlignment="Center"><TextBlock x:Name="AutomationToolbarTitle" Text="Automation" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="AutomationToolbarMeta" Text="0 nodes · 0 connections" Foreground="{StaticResource SecondaryBrush}" FontSize="10"/></StackPanel>
+              <Button Grid.Column="3" Click="SaveAutomation" Padding="10,6" Margin="0,0,7,0">⇩  Save</Button>
+              <Button Grid.Column="4" Style="{StaticResource PrimaryButton}" Click="RunAutomation" Padding="13,6" Margin="0,0,7,0">▶  Run</Button>
+              <Button Grid.Column="5" Click="FitWorkflow" Padding="10,6">Fit</Button>
+            </Grid>
+          </Border>
+          <Border x:Name="AutomationLibraryPanel" Grid.Row="1" Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="13">
             <Grid>
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -624,16 +635,14 @@
               <Button Grid.Row="4" Style="{StaticResource PrimaryButton}" Click="NewAutomation" Margin="0,10,0,0">&#xFF0B; New Workflow</Button>
             </Grid>
           </Border>
-          <Grid Grid.Column="1">
+          <Grid Grid.Row="1" Grid.Column="1">
             <local:WorkflowCanvas x:Name="FlowCanvas"/>
-            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Background="#CC0A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="10" Padding="8" Margin="12">
-              <StackPanel Orientation="Horizontal">
-                <Button Click="FitWorkflow" Padding="10,6">Fit</Button>
-                <Button Click="RunAutomation" Style="{StaticResource PrimaryButton}" Margin="7,0,0,0" Padding="12,6">&#x25B6; Run</Button>
-              </StackPanel>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="10" Padding="7" Margin="12">
+              <StackPanel Orientation="Horizontal"><TextBox x:Name="CanvasSearch" Style="{StaticResource SearchField}" Width="145" Height="30" TextChanged="CanvasSearchChanged" ToolTip="Find node"/><Button Click="CanvasZoomOut" Padding="8,5" Margin="6,0,0,0">−</Button><TextBlock x:Name="CanvasZoomText" Text="100%" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="7,0"/><Button Click="CanvasZoomIn" Padding="8,5">+</Button><Button Click="FitWorkflow" Padding="8,5" Margin="6,0,0,0">⌖</Button></StackPanel>
             </Border>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="11" Padding="6" Margin="12"><StackPanel Orientation="Horizontal"><Button Padding="9,6" ToolTip="Select">↖</Button><Button Padding="9,6" ToolTip="Pan">☝</Button><Button Padding="9,6" ToolTip="Fit" Click="FitWorkflow">⌗</Button><Button Padding="9,6" ToolTip="Reset zoom" Click="CanvasResetZoom">↗</Button></StackPanel></Border>
           </Grid>
-          <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
+          <Border x:Name="AutomationInspectorPanel" Grid.Row="1" Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
             <ScrollViewer>
               <StackPanel>
                 <TextBlock Text="INSPECTOR" Style="{StaticResource Section}"/>
@@ -642,6 +651,7 @@
                 <TextBox x:Name="AutomationDescription" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" TextChanged="AutomationDescriptionChanged" Margin="0,0,0,12"/>
                 <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions><TextBlock Text="Start mode" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><ComboBox x:Name="StartModeBox" Grid.Column="1" SelectionChanged="AutomationStartModeChanged"/></Grid>
                 <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,16"><StackPanel><TextBlock Text="WORKFLOW STATUS" Style="{StaticResource Section}"/><TextBlock x:Name="AutomationSummary" Text="0 nodes · 0 connections" FontWeight="SemiBold"/><TextBlock Text="Validation is updated as you edit the workflow." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border>
+                <StackPanel x:Name="NodeEditorPanel">
                 <TextBlock x:Name="NodeInspectorTitle" Text="Select a node" FontSize="17" FontWeight="SemiBold"/>
                 <TextBlock x:Name="NodeKindText" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,14"/>
                 <StackPanel x:Name="MacroNodeFields">
@@ -665,6 +675,7 @@
                   <Button x:Name="ConnectButton" Click="ConnectNode" Margin="0,0,4,0" Padding="8">Connect</Button>
                   <Button x:Name="DisconnectButton" Grid.Column="1" Click="DisconnectNode" Margin="4,0,0,0" Padding="8">Disconnect</Button>
                 </Grid>
+                </StackPanel>
                 <TextBlock Text="VALIDATION" Style="{StaticResource Section}" Margin="0,22,0,8"/>
                 <Border Style="{StaticResource Card}" Padding="12">
                   <TextBlock x:Name="ValidationText" Text="Select a workflow" Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
