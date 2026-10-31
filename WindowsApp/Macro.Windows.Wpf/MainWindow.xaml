@@ -14,6 +14,7 @@
     </DrawingImage>
   </Window.Icon>
   <Window.Resources>
+    <local:ProcessIconConverter x:Key="ProcessIconConverter"/>
     <SolidColorBrush x:Key="WindowBrush" Color="#060C13"/>
     <SolidColorBrush x:Key="ToolbarBrush" Color="#09111B"/>
     <SolidColorBrush x:Key="SidebarBrush" Color="#081019"/>
@@ -453,7 +454,7 @@
           </Border>
         </Grid>
         <!-- RECORDER -->
-        <ScrollViewer x:Name="RecorderPage" Visibility="Collapsed">
+        <ScrollViewer x:Name="RecorderPage" Visibility="Collapsed" Background="{StaticResource WindowBrush}">
           <StackPanel MaxWidth="850" Margin="28" HorizontalAlignment="Center">
             <TextBlock Text="CAPTURE" Style="{StaticResource Section}"/>
             <TextBlock Text="Recorder" FontSize="28" FontWeight="Bold"/>
@@ -515,60 +516,88 @@
         </ScrollViewer>
         <!-- TARGET -->
         <Grid x:Name="TargetPage" Visibility="Collapsed">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="TargetLibraryColumn" Width="350"/>
-            <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-          <Border Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="16">
+          <Grid.ColumnDefinitions><ColumnDefinition x:Name="TargetLibraryColumn" Width="350"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border Grid.Column="0" Background="#081019" BorderBrush="#1F3348" BorderThickness="0,0,1,0">
             <Grid>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-              </Grid.RowDefinitions>
-              <DockPanel Margin="0,0,0,12">
-                <TextBlock Text="AVAILABLE WINDOWS" Style="{StaticResource Section}"/>
-                <Button DockPanel.Dock="Right" Click="RefreshTargets" Padding="10,5">&#x21BB; Refresh</Button>
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <DockPanel LastChildFill="False" Margin="12,12,12,10">
+                <TextBlock Text="Available Windows" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                  <Border Background="#121F2D" CornerRadius="12" Padding="8,4" Margin="0,0,7,0"><TextBlock x:Name="TargetCount" Text="0" FontSize="11"/></Border>
+                  <Button Click="RefreshTargets" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" Padding="6,3" ToolTip="Refresh windows">↻</Button>
+                </StackPanel>
               </DockPanel>
-              <TextBox x:Name="TargetSearch" Style="{StaticResource SearchField}" Grid.Row="1" Margin="0,0,0,10" TextChanged="TargetSearchChanged" ToolTip="Search windows"/>
-              <Grid Grid.Row="2">
-              <ListBox x:Name="TargetList" SelectionChanged="TargetSelectionChanged">
-                <ListBox.ItemTemplate>
-                  <DataTemplate>
-                    <StackPanel>
-                      <TextBlock Text="{Binding ApplicationName}" FontWeight="SemiBold"/>
-                      <TextBlock Text="{Binding WindowTitle}" Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                      <TextBlock Text="{Binding Width, StringFormat={}{0}px wide}" Foreground="#617A91" FontSize="10"/>
-                    </StackPanel>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-              <StackPanel x:Name="TargetEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-                <TextBlock Text="No matching windows" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Refresh or clear the search to find a target." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,5,0,0"/>
-              </StackPanel>
+              <Grid Grid.Row="1" Margin="12,0,12,10">
+                <TextBox x:Name="TargetSearch" Style="{StaticResource SearchField}" TextChanged="TargetSearchChanged" ToolTip="Search apps or windows"/>
+                <TextBlock Text="Search apps or windows" Foreground="#788A9D" FontSize="12" VerticalAlignment="Center" Margin="30,0,0,0" IsHitTestVisible="False">
+                  <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=TargetSearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
               </Grid>
-              <Grid Grid.Row="3" Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Button Style="{StaticResource PrimaryButton}" Click="SelectTarget" Margin="0,0,4,0">Select Window</Button><Button Grid.Column="1" Click="ClearTarget" Margin="4,0,0,0">Clear Target</Button></Grid>
+              <Grid Grid.Row="2">
+                <ListBox x:Name="TargetList" SelectionChanged="TargetSelectionChanged" Margin="5,0">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="41"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Width="31" Height="31" CornerRadius="7" Background="#172431" HorizontalAlignment="Left" VerticalAlignment="Top"><Grid><TextBlock Text="▣" Foreground="#A4B0BC" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image Source="{Binding ProcessId, Converter={StaticResource ProcessIconConverter}}" Width="28" Height="28" Stretch="Uniform"/></Grid></Border>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="{Binding ApplicationName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding WindowTitle}" Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                          <StackPanel Orientation="Horizontal" Margin="0,2,0,0"><TextBlock Text="PID " Foreground="#647789" FontSize="10"/><TextBlock Text="{Binding ProcessId}" Foreground="#647789" FontSize="10"/><TextBlock Text=" · " Foreground="#647789" FontSize="10"/><TextBlock Text="{Binding Width}" Foreground="#647789" FontSize="10"/><TextBlock Text=" × " Foreground="#647789" FontSize="10"/><TextBlock Text="{Binding Height}" Foreground="#647789" FontSize="10"/></StackPanel>
+                        </StackPanel>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel x:Name="TargetEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                  <TextBlock Text="⌕" Foreground="#657B8F" FontSize="25" HorizontalAlignment="Center"/>
+                  <TextBlock Text="No Matching Windows" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                  <TextBlock Text="Try another app name or process ID." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,5,0,0"/>
+                </StackPanel>
+              </Grid>
+              <Border Grid.Row="3" BorderBrush="#1F3348" BorderThickness="0,1,0,0" Padding="11,9">
+                <TextBlock x:Name="TargetDiscoveryMessage" Text="Searching for windows…" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
+              </Border>
             </Grid>
           </Border>
-          <StackPanel Grid.Column="1" Margin="28" MaxWidth="660" HorizontalAlignment="Stretch">
-            <TextBlock Text="TARGET WINDOW" Style="{StaticResource Section}"/>
-            <TextBlock x:Name="TargetTitle" Text="No target selected" FontSize="30" FontWeight="Bold"/>
-            <TextBlock x:Name="TargetSubtitle" Text="Choose a visible application window to receive the macro." Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,20"/>
-            <Border Style="{StaticResource Card}">
-              <StackPanel>
-                <TextBlock Text="SELECTED TARGET" Style="{StaticResource Section}"/>
-                <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="17"/>
-                <TextBlock Text="Post a harmless test event before running a sequence. Posted does not guarantee the application consumed it." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,6,0,14"/>
-                <StackPanel Orientation="Horizontal">
-                  <Button Click="TestKey">Test E key</Button>
-                  <Button Click="TestClick" Margin="8,0,0,0">Test center click</Button>
+          <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Background="#0A1420">
+            <StackPanel MaxWidth="700" Margin="28,20" HorizontalAlignment="Center">
+              <TextBlock Text="Selected Target" FontWeight="SemiBold" Margin="0,0,0,9"/>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="12">
+                <StackPanel>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Application"/><TextBlock x:Name="TargetApplicationValue" Grid.Column="1" Text="Not selected" Foreground="{StaticResource SecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="290"/></Grid>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Window"/><TextBlock x:Name="TargetWindowValue" Grid.Column="1" Text="—" Foreground="{StaticResource SecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="290"/></Grid>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Process ID"/><TextBlock x:Name="TargetProcessIdValue" Grid.Column="1" Text="—" Foreground="{StaticResource SecondaryBrush}"/></Grid>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Process"/><TextBlock x:Name="TargetProcessValue" Grid.Column="1" Text="Unavailable" Foreground="{StaticResource SecondaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="290"/></Grid>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Window size"/><TextBlock x:Name="TargetSizeValue" Grid.Column="1" Text="—" Foreground="{StaticResource SecondaryBrush}"/></Grid>
+                  <Grid Margin="0,7"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Status"/><Border Grid.Column="1" Background="#162333" CornerRadius="12" Padding="8,4"><TextBlock x:Name="TargetStatusValue" Text="No target" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></Border></Grid>
                 </StackPanel>
+              </Border>
+              <TextBlock Text="Selection" FontWeight="SemiBold" Margin="0,24,0,9"/>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="12">
+                <StackPanel>
+                  <Button x:Name="SelectTargetButton" Click="SelectTarget" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" IsEnabled="False" Padding="12,6">Select Highlighted Window</Button>
+                  <Separator Background="#1F3348" Margin="0,12"/>
+                  <Button x:Name="ClearTargetButton" Click="ClearTarget" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" HorizontalAlignment="Left" IsEnabled="False" Padding="6,4">Clear Target</Button>
+                </StackPanel>
+              </Border>
+              <TextBlock Text="Input Test" FontWeight="SemiBold" Margin="0,24,0,9"/>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="12">
+                <StackPanel>
+                  <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions><TextBlock Text="Test action" VerticalAlignment="Center"/><ComboBox x:Name="TargetTestActionBox" Grid.Column="1" SelectedIndex="0"><ComboBoxItem Content="Press E"/><ComboBoxItem Content="Click center"/></ComboBox></Grid>
+                  <Separator Background="#1F3348" Margin="0,12"/>
+                  <Button x:Name="TargetTestButton" Click="SendTargetTest" Foreground="#0E79FF" Background="#0D1B2A" BorderBrush="Transparent" IsEnabled="False" HorizontalAlignment="Left" Padding="9,6">Send Test Input</Button>
+                  <TextBlock x:Name="DiagnosticText" Text="Select a target, then send a test input." Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,11,0,0"/>
+                </StackPanel>
+              </Border>
+              <StackPanel x:Name="TargetCompatibilitySection" Visibility="Collapsed">
+                <TextBlock Text="Roblox Compatibility" FontWeight="SemiBold" Margin="0,24,0,9"/>
+                <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="12">
+                  <StackPanel><TextBlock Text="⚠  Background receipt is unverified and may require focus" Foreground="#F29930" TextWrapping="Wrap"/><TextBlock Text="Games may read focused HID input rather than posted window messages. A successful send does not prove Roblox consumed the input." Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/></StackPanel>
+                </Border>
               </StackPanel>
-            </Border>
-            <TextBlock x:Name="DiagnosticText" Foreground="#6F94B2" TextWrapping="Wrap" Margin="0,14"/>
-          </StackPanel>
+              <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,12,0,0"><TextBlock Text="Window discovery and process-targeted tests do not activate the selected application or move the physical cursor. Some window titles may be unavailable." Foreground="{StaticResource SecondaryBrush}" FontSize="11" TextWrapping="Wrap"/></Border>
+            </StackPanel>
+          </ScrollViewer>
         </Grid>
         <!-- AUTOMATION -->
         <Grid x:Name="AutomationPage" Visibility="Collapsed">

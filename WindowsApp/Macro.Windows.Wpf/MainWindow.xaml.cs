@@ -704,6 +704,8 @@ public partial class MainWindow : Window
         ApplyTargetFilter();
         if (previous is not null)
             TargetList.SelectedItem = targets.FirstOrDefault(t => t.Handle == previous.Handle);
+        TargetDiscoveryMessage.Text = $"Found {targets.Count} windows across this PC.";
+        UpdateTargetDetails();
         Log($"Found {targets.Count} visible windows");
     }
 
@@ -719,15 +721,14 @@ public partial class MainWindow : Window
                 || (target.ProcessName?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false)
                 || target.ProcessId.ToString(CultureInfo.InvariantCulture).Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
         TargetList.ItemsSource = filtered;
+        TargetCount.Text = filtered.Count.ToString(CultureInfo.InvariantCulture);
         TargetEmptyState.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectTargetButton.IsEnabled = TargetList.SelectedItem is TargetWindow;
     }
 
     private void TargetSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (TargetList.SelectedItem is not TargetWindow target) return;
-        TargetTitle.Text = target.ApplicationName;
-        TargetSubtitle.Text = target.WindowTitle;
-        DiagnosticText.Text = $"PID {target.ProcessId}  ·  {target.Width} × {target.Height}  ·  {target.ProcessName}";
+        SelectTargetButton.IsEnabled = TargetList.SelectedItem is TargetWindow;
     }
 
     private void SelectTarget(object sender, RoutedEventArgs e)
@@ -744,8 +745,7 @@ public partial class MainWindow : Window
         RecorderTargetIcon.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28C775"));
         UpdateMacroInspectorDetails();
         UpdateState();
-        TargetTitle.Text = target.ApplicationName;
-        TargetSubtitle.Text = target.WindowTitle;
+        UpdateTargetDetails();
         DiagnosticText.Text = $"Selected · PID {target.ProcessId} · {target.Width} × {target.Height}";
         Log("Target selected: " + target);
         SaveAll();
@@ -755,9 +755,7 @@ public partial class MainWindow : Window
     {
         selectedTarget = null;
         TargetList.SelectedItem = null;
-        TargetTitle.Text = "No target selected";
-        TargetSubtitle.Text = "Choose a visible application window to receive the macro.";
-        DiagnosticText.Text = "";
+        DiagnosticText.Text = "Select a target, then send a test input.";
         SidebarTarget.Text = "No target";
         SidebarTargetSub.Text = "Choose a window";
         RecorderTarget.Text = "No target selected";
@@ -767,7 +765,29 @@ public partial class MainWindow : Window
         InspectorTarget.Text = "No target selected";
         UpdateMacroInspectorDetails();
         UpdateState();
+        UpdateTargetDetails();
         Log("Target cleared");
+    }
+
+    private void UpdateTargetDetails()
+    {
+        var target = selectedTarget;
+        TargetApplicationValue.Text = target?.ApplicationName ?? "Not selected";
+        TargetWindowValue.Text = target?.WindowTitle ?? "—";
+        TargetProcessIdValue.Text = target?.ProcessId.ToString(CultureInfo.InvariantCulture) ?? "—";
+        TargetProcessValue.Text = target?.ProcessName ?? "Unavailable";
+        TargetSizeValue.Text = target is null ? "—" : $"{target.Width} × {target.Height}";
+        TargetStatusValue.Text = target is null ? "No target"
+            : targets.Any(window => window.Handle == target.Handle) ? "Visible" : "Window unavailable";
+        ClearTargetButton.IsEnabled = TargetTestButton.IsEnabled = target is not null;
+        TargetCompatibilitySection.Visibility = target?.ApplicationName.Contains("roblox", StringComparison.OrdinalIgnoreCase) == true
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SendTargetTest(object sender, RoutedEventArgs e)
+    {
+        if (TargetTestActionBox.SelectedIndex == 1) TestClick(sender, e);
+        else TestKey(sender, e);
     }
 
     private void TestKey(object sender, RoutedEventArgs e)
