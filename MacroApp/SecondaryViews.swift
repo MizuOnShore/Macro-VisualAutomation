@@ -729,11 +729,11 @@ private struct PermissionsSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 permissionCard(
-                    title: "Accessibility",
+                    title: "Accessibility & Event Posting",
                     symbol: "accessibility",
-                    granted: permissions.accessibilityGranted,
-                    requirement: "Required for automation",
-                    explanation: "Allows Macro to use approved accessibility and synthetic-event posting APIs. Macro never bypasses this macOS control.",
+                    granted: permissions.accessibilityGranted && permissions.eventPostingGranted,
+                    requirement: "Required for automation and Compatibility mouse playback",
+                    explanation: "Allows Macro to use approved accessibility APIs and post system mouse events. Both checks must be granted. Macro never bypasses these macOS controls.",
                     request: permissions.requestAccessibility,
                     openSettings: permissions.openAccessibilitySettings
                 )

@@ -1,22 +1,51 @@
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
 
 enum InputBackendError: LocalizedError {
     case accessibilityRequired
+    case eventPostingRequired
     case invalidKey(String)
     case eventCreationFailed
     case targetUnavailable
+    case targetActivationFailed
     case unsupported(String)
 
     var errorDescription: String? {
         switch self {
         case .accessibilityRequired: "Accessibility permission is required."
+        case .eventPostingRequired: "Synthetic event permission is required for Compatibility mouse playback. Open Settings → Permissions and request Accessibility access again."
         case .invalidKey(let key): "Unknown key: \(key)."
         case .eventCreationFailed: "macOS could not create the synthetic event."
         case .targetUnavailable: "The selected target process is no longer running."
+        case .targetActivationFailed: "Macro could not bring the selected target to the foreground."
         case .unsupported(let reason): reason
         }
+    }
+}
+
+@MainActor
+enum CompatibilityPlaybackPreparation {
+    static func activate(_ target: TargetWindow) async throws {
+        guard let application = NSRunningApplication(processIdentifier: target.processIdentifier),
+              !application.isTerminated else {
+            throw InputBackendError.targetUnavailable
+        }
+
+        _ = application.unhide()
+        application.activate(options: [.activateAllWindows])
+
+        // Switching Spaces or restoring a fullscreen game can take much longer
+        // than a fixed delay. Do not start HID playback until it is frontmost.
+        for _ in 0..<40 {
+            try Task.checkCancellation()
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier {
+                return
+            }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        throw InputBackendError.targetActivationFailed
     }
 }
 
@@ -66,14 +95,14 @@ final class TargetedCGEventBackend: InputBackend {
 
     init(mousePlaybackMode: MousePlaybackMode) {
         self.mousePlaybackMode = mousePlaybackMode
+        let stateID: CGEventSourceStateID = mousePlaybackMode == .compatibility
+            ? .hidSystemState
+            : .privateState
+        source = CGEventSource(stateID: stateID)
+        source?.localEventsSuppressionInterval = 0
     }
     let canVerifyReceipt = false
-
-    private let source: CGEventSource? = {
-        let source = CGEventSource(stateID: .privateState)
-        source?.localEventsSuppressionInterval = 0
-        return source
-    }()
+    private let source: CGEventSource?
 
     func keyDown(_ keyCode: CGKeyCode, target: TargetWindow) throws {
         try validate(target)
@@ -154,6 +183,9 @@ final class TargetedCGEventBackend: InputBackend {
 
     private func validate(_ target: TargetWindow) throws {
         guard AXIsProcessTrusted() else { throw InputBackendError.accessibilityRequired }
+        if mousePlaybackMode == .compatibility, !CGPreflightPostEventAccess() {
+            throw InputBackendError.eventPostingRequired
+        }
         guard kill(target.processIdentifier, 0) == 0 else { throw InputBackendError.targetUnavailable }
     }
 

@@ -335,18 +335,36 @@ final class AppModel: ObservableObject {
             return
         }
 
+        guard permissionManager.eventPostingGranted else {
+            log("Cannot start Compatibility playback: synthetic event permission is not granted", level: .error)
+            alertMessage = "Compatibility mouse playback needs macOS synthetic-event permission. Open Macro → Settings → Permissions, request Accessibility access again, then relaunch Macro."
+            return
+        }
+
         // Games commonly accept targeted keyboard events but require mouse
-        // input from the system HID stream while they are frontmost. Activate
-        // the chosen target and allow AppKit a short moment to complete the
-        // focus change before the first recorded mouse action is posted.
+        // input from the system HID stream while they are frontmost. Wait for
+        // the chosen target to actually become frontmost before posting input.
         let preparationID = UUID()
         playbackPreparationID = preparationID
         activity = .preparingPlayback
-        NSRunningApplication(processIdentifier: target.processIdentifier)?.activate(options: [.activateAllWindows])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) { [weak self] in
-            guard let self, self.playbackPreparationID == preparationID else { return }
-            self.playbackPreparationID = nil
-            self.engine.start(macro: macro, target: target, backend: backend)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await CompatibilityPlaybackPreparation.activate(target)
+                guard self.playbackPreparationID == preparationID else { return }
+                self.playbackPreparationID = nil
+                self.engine.start(macro: macro, target: target, backend: backend)
+            } catch is CancellationError {
+                guard self.playbackPreparationID == preparationID else { return }
+                self.playbackPreparationID = nil
+                self.activity = .idle
+            } catch {
+                guard self.playbackPreparationID == preparationID else { return }
+                self.playbackPreparationID = nil
+                self.activity = .idle
+                self.alertMessage = error.localizedDescription
+                self.log("Compatibility playback preparation failed: \(error.localizedDescription)", level: .error)
+            }
         }
     }
 
@@ -445,11 +463,18 @@ final class AppModel: ObservableObject {
             diagnosticMessage = "Select a target first."
             return
         }
-        let backend = inputBackend(for: selectedMacro?.mousePlaybackMode ?? .background)
+        let mode = selectedMacro?.mousePlaybackMode ?? .background
+        let backend = inputBackend(for: mode)
         diagnosticMessage = "Attempting \(diagnosticAction.rawValue) for \(target.applicationName)…"
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
+                if mode == .compatibility {
+                    guard self.permissionManager.eventPostingGranted else {
+                        throw InputBackendError.eventPostingRequired
+                    }
+                    try await CompatibilityPlaybackPreparation.activate(target)
+                }
                 let center = CGPoint(x: target.bounds.midX, y: target.bounds.midY)
                 switch diagnosticAction {
                 case .pressE:

@@ -327,11 +327,12 @@ final class AutomationEngine {
     private func playMacro(_ macro: MacroDefinition, target: TargetWindow) async -> MacroRunOutcome {
         let mode = macro.mousePlaybackMode
         if mode == .compatibility {
-            NSRunningApplication(processIdentifier: target.processIdentifier)?.activate(options: [.activateAllWindows])
             do {
-                try await Task.sleep(nanoseconds: 200_000_000)
-            } catch {
+                try await CompatibilityPlaybackPreparation.activate(target)
+            } catch is CancellationError {
                 return .stopped
+            } catch {
+                return .failed(error.localizedDescription)
             }
         }
         do {
