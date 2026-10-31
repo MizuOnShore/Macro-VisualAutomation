@@ -36,6 +36,9 @@ public partial class App : Application
                     window.ShowPageForCapture(page);
                     if (suffix == "-editor-wide") window.ShowSecondaryStateForCapture("macros-editor");
                     if (suffix == "-node-wide") window.ShowSecondaryStateForCapture("automation-node");
+                    if (suffix == "-library-closed-wide") window.ShowSecondaryStateForCapture("automation-library-closed");
+                    if (suffix == "-inspector-closed-wide") window.ShowSecondaryStateForCapture("automation-inspector-closed");
+                    if (suffix == "-both-closed-wide") window.ShowSecondaryStateForCapture("automation-both-closed");
                     if (suffix == "-hotkeys-wide") window.ShowSecondaryStateForCapture("settings-hotkeys");
                     if (suffix == "-permissions-wide") window.ShowSecondaryStateForCapture("settings-permissions");
                     await Task.Delay(75);
@@ -70,6 +73,9 @@ public partial class App : Application
                     await CapturePage(page, "-wide");
                 await CapturePage("Macros", "-editor-wide");
                 await CapturePage("Automation", "-node-wide");
+                await CapturePage("Automation", "-library-closed-wide");
+                await CapturePage("Automation", "-inspector-closed-wide");
+                await CapturePage("Automation", "-both-closed-wide");
                 await CapturePage("Settings", "-hotkeys-wide");
                 await CapturePage("Settings", "-permissions-wide");
                 window.Close();
@@ -88,7 +94,8 @@ public partial class App : Application
                     && window.Left >= area.Left - 2 && window.Top >= area.Top - 2
                     && window.Left + window.ActualWidth <= area.Right + 2
                     && window.Top + window.ActualHeight <= area.Bottom + 2
-                    && mainWindow.VerifyMacroSelectorForSmoke();
+                    && mainWindow.VerifyMacroSelectorForSmoke()
+                    && mainWindow.VerifyAutomationPanelsForSmoke();
                 window?.Close();
                 Shutdown(valid ? 0 : 2);
             });

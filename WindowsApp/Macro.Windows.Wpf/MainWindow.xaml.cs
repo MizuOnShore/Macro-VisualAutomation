@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     private HwndSource? windowSource;
     private bool loading;
     private bool actionEditing;
+    private bool automationLibraryOpen = true;
+    private bool automationInspectorOpen = true;
 
     private sealed class UiLogEntry
     {
@@ -157,7 +159,11 @@ public partial class MainWindow : Window
         if (page == "Automation") FlowCanvas.Fit();
     }
 
-    internal void ShowPageForCapture(string page) => NavigateTo(page);
+    internal void ShowPageForCapture(string page)
+    {
+        if (page == "Automation") SetAutomationPanels(true, true);
+        NavigateTo(page);
+    }
     internal bool VerifyMacroSelectorForSmoke()
     {
         NavigateTo("Macros");
@@ -169,12 +175,25 @@ public partial class MainWindow : Window
         LoopModeBox.IsDropDownOpen = false;
         return opened;
     }
+    internal bool VerifyAutomationPanelsForSmoke()
+    {
+        NavigateTo("Automation");
+        SetAutomationPanels(false, false);
+        var closed = AutomationLibraryColumn.Width.Value == 0 && AutomationInspectorColumn.Width.Value == 0
+            && AutomationLibraryPanel.Visibility == Visibility.Collapsed && AutomationInspectorPanel.Visibility == Visibility.Collapsed;
+        SetAutomationPanels(true, true);
+        return closed && AutomationLibraryColumn.Width.Value > 0 && AutomationInspectorColumn.Width.Value > 0
+            && AutomationLibraryPanel.Visibility == Visibility.Visible && AutomationInspectorPanel.Visibility == Visibility.Visible;
+    }
     internal void ShowSecondaryStateForCapture(string state)
     {
         switch (state)
         {
             case "macros-editor": SetActionEditor(true); break;
             case "automation-node": SelectNode(SelectedAutomation?.Nodes.FirstOrDefault(n => n.Kind == AutomationNodeKind.Start)); break;
+            case "automation-library-closed": SetAutomationPanels(false, true); break;
+            case "automation-inspector-closed": SetAutomationPanels(true, false); break;
+            case "automation-both-closed": SetAutomationPanels(false, false); break;
             case "settings-hotkeys": ShowSettingsTab("Hotkeys"); break;
             case "settings-permissions": ShowSettingsTab("Permissions"); break;
         }
@@ -213,8 +232,8 @@ public partial class MainWindow : Window
         Grid.SetColumnSpan(MacroPlaybackLabel, compact ? 2 : 1);
         MacroPlaybackSegments.Margin = compact ? new Thickness(0, 7, 0, 0) : new Thickness(0);
         TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
-        AutomationLibraryColumn.Width = new GridLength(compact ? 195 : 220);
-        AutomationInspectorColumn.Width = new GridLength(compact ? 250 : 285);
+        AutomationLibraryColumn.Width = new GridLength(automationLibraryOpen ? compact ? 195 : 220 : 0);
+        AutomationInspectorColumn.Width = new GridLength(automationInspectorOpen ? compact ? 250 : 285 : 0);
     }
 
     private void DragWindow(object sender, MouseButtonEventArgs e)
@@ -1178,7 +1197,20 @@ public partial class MainWindow : Window
     private void SaveAutomation(object sender, RoutedEventArgs e) => SaveAll();
     private void ToggleAutomationLibrary(object sender, RoutedEventArgs e)
     {
-        AutomationLibraryPanel.Visibility = AutomationLibraryPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        SetAutomationPanels(!automationLibraryOpen, automationInspectorOpen);
+    }
+    private void ToggleAutomationInspector(object sender, RoutedEventArgs e) => SetAutomationPanels(automationLibraryOpen, !automationInspectorOpen);
+
+    private void SetAutomationPanels(bool libraryOpen, bool inspectorOpen)
+    {
+        automationLibraryOpen = libraryOpen;
+        automationInspectorOpen = inspectorOpen;
+        AutomationLibraryPanel.Visibility = libraryOpen ? Visibility.Visible : Visibility.Collapsed;
+        AutomationInspectorPanel.Visibility = inspectorOpen ? Visibility.Visible : Visibility.Collapsed;
+        ApplyLayout(ActualWidth);
+        AutomationLibraryToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(libraryOpen ? "#183A5B" : "#121F2D"));
+        AutomationInspectorToggle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(inspectorOpen ? "#183A5B" : "#121F2D"));
+        FlowCanvas.Fit();
     }
     private void CanvasZoomOut(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(.85); UpdateCanvasZoom(); }
     private void CanvasZoomIn(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(1.18); UpdateCanvasZoom(); }
