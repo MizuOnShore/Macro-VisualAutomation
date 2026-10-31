@@ -33,14 +33,16 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     public WorkflowCanvas() { Focusable = true; ClipToBounds = true; }
 
-    public void Fit()
+    public void Fit(double? availableWidth = null, double? availableHeight = null)
     {
         fitOnResize = true;
-        if (workflow is null || workflow.Nodes.Count == 0 || ActualWidth <= 0 || ActualHeight <= 0) { zoom = 1; pan = new(70, 50); return; }
+        var width = availableWidth ?? ActualWidth;
+        var height = availableHeight ?? ActualHeight;
+        if (workflow is null || workflow.Nodes.Count == 0 || width <= 0 || height <= 0) { zoom = 1; pan = new(70, 50); return; }
         var minX = workflow.Nodes.Min(n => n.Position.X); var maxX = workflow.Nodes.Max(n => n.Position.X) + NodeWidth;
         var minY = workflow.Nodes.Min(n => n.Position.Y); var maxY = workflow.Nodes.Max(n => n.Position.Y) + NodeHeight;
-        zoom = Math.Clamp(Math.Min((ActualWidth - 100) / Math.Max(1, maxX - minX), (ActualHeight - 100) / Math.Max(1, maxY - minY)), .45, 1.15);
-        pan = new((ActualWidth - (minX + maxX) * zoom) / 2, (ActualHeight - (minY + maxY) * zoom) / 2);
+        zoom = Math.Clamp(Math.Min((width - 100) / Math.Max(1, maxX - minX), (height - 100) / Math.Max(1, maxY - minY)), .45, 1.15);
+        pan = new((width - (minX + maxX) * zoom) / 2, (height - (minY + maxY) * zoom) / 2);
         InvalidateVisual();
     }
 
