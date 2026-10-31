@@ -63,9 +63,9 @@ public partial class MainWindow : Window
         FlowCanvas.MacroTitleResolver = id => macros.FirstOrDefault(item => item.Id == id)?.Name ?? "Choose a macro";
 
         LoopModeBox.ItemsSource = Enum.GetValues<LoopMode>();
-        PlaybackModeBox.ItemsSource = Enum.GetValues<MousePlaybackMode>();
         StartModeBox.ItemsSource = Enum.GetValues<Macro.Core.AutomationStartMode>();
         AddActionBox.ItemsSource = Enum.GetValues<MacroActionType>();
+        AddActionBox.SelectedIndex = 0;
         ActionTypeBox.ItemsSource = Enum.GetValues<MacroActionType>();
         NodeBranch.ItemsSource = new[] { "Normal", "Yes", "No" };
         NodeBranch.SelectedIndex = 0;
@@ -154,6 +154,8 @@ public partial class MainWindow : Window
         if (page == "Automation") FlowCanvas.Fit();
     }
 
+    internal void ShowPageForCapture(string page) => NavigateTo(page);
+
     private void FitWindowToWorkArea()
     {
         var area = SystemParameters.WorkArea;
@@ -170,8 +172,8 @@ public partial class MainWindow : Window
     {
         var compact = ActualWidth > 0 && ActualWidth < 1120;
         SidebarColumn.Width = new GridLength(compact ? 168 : 190);
-        MacroLibraryColumn.Width = new GridLength(compact ? 205 : 235);
-        MacroInspectorColumn.Width = new GridLength(compact ? 250 : 285);
+        MacroLibraryColumn.Width = new GridLength(1, GridUnitType.Star);
+        MacroInspectorColumn.Width = new GridLength(ActualWidth >= 1500 ? 390 : compact ? 260 : 310);
         TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
         AutomationLibraryColumn.Width = new GridLength(compact ? 195 : 220);
         AutomationInspectorColumn.Width = new GridLength(compact ? 250 : 285);
@@ -239,6 +241,8 @@ public partial class MainWindow : Window
         SetStatus(recorder.IsRecording ? "Recording" : state == RunState.Idle ? "Ready" : state.ToString(),
             recorder.IsRecording ? "#EF4053" : state == RunState.Paused ? "#F4A340" : state == RunState.Running ? "#27C884" : "#6E8498");
         PlayButton.IsEnabled = !busy;
+        PlayRecordingButton.IsEnabled = !busy && SelectedMacro is not null && selectedTarget is not null;
+        BackgroundModeButton.IsEnabled = CompatibilityModeButton.IsEnabled = !busy && SelectedMacro is not null;
         PauseButton.IsEnabled = state != RunState.Idle;
         StopButton.IsEnabled = busy;
     }
@@ -250,7 +254,7 @@ public partial class MainWindow : Window
         HeaderDot.Fill = ActivityDot.Fill = brush;
     }
 
-    private void MacroSearchChanged(object sender, TextChangedEventArgs e) => RefreshMacroList(SelectedMacro);
+    private void MacroSearchChanged(object sender, TextChangedEventArgs e) => RefreshMacros(SelectedMacro);
 
     private void RefreshMacros(MacroDefinition? select = null)
     {
@@ -267,7 +271,8 @@ public partial class MainWindow : Window
             : macros.Where(m => m.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
         loading = true;
         MacroList.ItemsSource = visible;
-        MacroCount.Text = visible.Count.ToString(CultureInfo.InvariantCulture);
+        MacroCount.Text = macros.Count.ToString(CultureInfo.InvariantCulture);
+        MacroEmptyState.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (select is not null && visible.Contains(select)) MacroList.SelectedItem = select;
         loading = false;
     }
@@ -288,7 +293,9 @@ public partial class MainWindow : Window
         MacroName.Text = macro?.Name ?? "";
         LoopModeBox.SelectedItem = macro?.LoopMode ?? LoopMode.Once;
         LoopCountBox.Text = (macro?.LoopCount ?? 2).ToString(CultureInfo.InvariantCulture);
-        PlaybackModeBox.SelectedItem = macro?.MousePlaybackMode ?? MousePlaybackMode.Background;
+        BackgroundModeButton.IsChecked = macro?.MousePlaybackMode != MousePlaybackMode.Compatibility;
+        CompatibilityModeButton.IsChecked = macro?.MousePlaybackMode == MousePlaybackMode.Compatibility;
+        LoopCountRow.Visibility = macro?.LoopMode == LoopMode.Count ? Visibility.Visible : Visibility.Collapsed;
         ActionList.ItemsSource = null;
         ActionList.ItemsSource = macro?.Actions;
         ActionList.SelectedIndex = macro?.Actions.Count > 0 ? 0 : -1;
@@ -300,9 +307,32 @@ public partial class MainWindow : Window
         InspectorTarget.Text = OverviewTarget.Text;
         InspectorPlayback.Text = OverviewInput.Text;
         InspectorActions.Text = OverviewCount.Text;
+        UpdateMacroInspectorDetails();
         SetActionEditor(actionEditing);
         loading = false;
         LoadSelectedAction();
+        UpdateState();
+    }
+
+    private void UpdateMacroInspectorDetails()
+    {
+        var macro = SelectedMacro;
+        var actions = macro?.Actions;
+        InspectorWaveform.ActionCount = actions?.Count ?? 0;
+        InspectorActionSummary.Text = $"{actions?.Count ?? 0} actions";
+        InspectorLoopSummary.Text = macro?.LoopMode switch
+        {
+            LoopMode.Once => "Run Once",
+            LoopMode.Count => $"{macro.LoopCount} times",
+            LoopMode.Infinite => "Infinite",
+            _ => "Run Once"
+        };
+        InspectorKeyboardCount.Text = (actions?.Count(a => a.Type is MacroActionType.KeyDown or MacroActionType.KeyUp
+            or MacroActionType.KeyPress or MacroActionType.HoldKey) ?? 0).ToString(CultureInfo.InvariantCulture);
+        InspectorMouseCount.Text = (actions?.Count(a => a.Type is MacroActionType.LeftClick or MacroActionType.RightClick
+            or MacroActionType.MiddleClick or MacroActionType.MouseDown or MacroActionType.MouseUp
+            or MacroActionType.Move or MacroActionType.Scroll) ?? 0).ToString(CultureInfo.InvariantCulture);
+        InspectorTargetName.Text = selectedTarget?.ApplicationName ?? macro?.TargetBundleIdentifier ?? "None";
     }
 
     private void MacroNameChanged(object sender, TextChangedEventArgs e)
@@ -319,25 +349,50 @@ public partial class MainWindow : Window
         if (loading || SelectedMacro is not { } macro) return;
         if (LoopModeBox.SelectedItem is LoopMode loop) macro.LoopMode = loop;
         if (int.TryParse(LoopCountBox.Text, out var count)) macro.LoopCount = Math.Clamp(count, 1, 1_000_000);
-        if (PlaybackModeBox.SelectedItem is MousePlaybackMode mode) macro.MousePlaybackMode = mode;
+        LoopCountRow.Visibility = macro.LoopMode == LoopMode.Count ? Visibility.Visible : Visibility.Collapsed;
         OverviewMode.Text = macro.LoopMode.ToString();
         OverviewInput.Text = macro.MousePlaybackMode.ToString();
         InspectorPlayback.Text = OverviewInput.Text;
+        UpdateMacroInspectorDetails();
+        MacroList.Items.Refresh();
         SaveAll();
     }
 
+    private void PlaybackModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (loading || SelectedMacro is not { } macro) return;
+        macro.MousePlaybackMode = CompatibilityModeButton.IsChecked == true
+            ? MousePlaybackMode.Compatibility : MousePlaybackMode.Background;
+        OverviewInput.Text = macro.MousePlaybackMode.ToString();
+        InspectorPlayback.Text = OverviewInput.Text;
+        MacroList.Items.Refresh();
+        SaveAll();
+    }
+
+    private void OpenMacroMenu(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.ContextMenu is { } menu)
+        {
+            menu.PlacementTarget = button;
+            menu.IsOpen = true;
+        }
+    }
+
     private void EditActions(object sender, RoutedEventArgs e) => SetActionEditor(true);
+    private void ReturnToMacroOverview(object sender, RoutedEventArgs e) => SetActionEditor(false);
 
     private void SetActionEditor(bool editing)
     {
-        actionEditing = editing;
-        MacroOverviewCard.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        actionEditing = editing && SelectedMacro is not null;
+        editing = actionEditing;
+        MacroOverviewCard.Visibility = editing || SelectedMacro is null ? Visibility.Collapsed : Visibility.Visible;
         MacroList.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         ActionList.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         MacroInspectorOverview.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         ActionInspectorScroll.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         ActionFooter.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         LibraryFooter.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        MacroNoSelection.Visibility = SelectedMacro is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ActionSelected(object sender, SelectionChangedEventArgs e)
@@ -405,6 +460,7 @@ public partial class MainWindow : Window
         ActionInspectorTitle.Text = action.ToString();
         UpdateActionFieldVisibility(action.Type);
         ActionList.Items.Refresh();
+        UpdateMacroInspectorDetails();
         SaveAll();
     }
 
@@ -465,6 +521,8 @@ public partial class MainWindow : Window
         LoadSelectedAction();
         OverviewCount.Text = (SelectedMacro?.Actions.Count ?? 0).ToString(CultureInfo.InvariantCulture);
         InspectorActions.Text = OverviewCount.Text;
+        UpdateMacroInspectorDetails();
+        MacroList.Items.Refresh();
     }
 
     private void NewMacro(object sender, RoutedEventArgs e)
@@ -656,6 +714,8 @@ public partial class MainWindow : Window
         SidebarTarget.Text = target.ApplicationName;
         SidebarTargetSub.Text = target.WindowTitle;
         RecorderTarget.Text = "◎  " + target.ApplicationName;
+        UpdateMacroInspectorDetails();
+        UpdateState();
         RecorderModeText.Text = target.ApplicationName;
         TargetTitle.Text = target.ApplicationName;
         TargetSubtitle.Text = target.WindowTitle;
@@ -677,6 +737,8 @@ public partial class MainWindow : Window
         RecorderModeText.Text = "No target";
         OverviewTarget.Text = "No target selected";
         InspectorTarget.Text = "No target selected";
+        UpdateMacroInspectorDetails();
+        UpdateState();
         Log("Target cleared");
     }
 

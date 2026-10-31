@@ -164,6 +164,22 @@
       <Setter Property="CornerRadius" Value="14"/>
       <Setter Property="Padding" Value="16"/>
     </Style>
+    <Style x:Key="PlaybackSegment" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#C8D2DB"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+        <Border x:Name="Segment" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Segment" Property="Background" Value="#1B3045"/></Trigger>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="Segment" Property="Background" Value="#0E79FF"/><Setter Property="Foreground" Value="White"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value=".45"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key="Section" TargetType="TextBlock">
       <Setter Property="Foreground" Value="#708AA1"/>
       <Setter Property="FontSize" Value="11"/>
@@ -296,38 +312,63 @@
             <ColumnDefinition x:Name="MacroLibraryColumn" Width="*"/>
             <ColumnDefinition x:Name="MacroInspectorColumn" Width="360"/>
           </Grid.ColumnDefinitions>
-          <Border Grid.Column="0" Background="#07121D" BorderBrush="#17364E" BorderThickness="0,0,1,0">
+          <Border Grid.Column="0" Background="#060C13" BorderBrush="#1F3348" BorderThickness="0,0,1,0">
             <Grid>
               <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-              <DockPanel Margin="18,14,18,10">
-                <StackPanel><TextBlock Text="RECORDINGS" Style="{StaticResource Section}"/><TextBlock Text="Macros" FontSize="20" FontWeight="SemiBold"/></StackPanel>
+              <DockPanel LastChildFill="False" Margin="18,14,18,10">
+                <TextBlock Text="Recordings" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
-                  <Border Background="#153753" CornerRadius="12" Padding="8,4" Margin="0,0,8,0"><TextBlock x:Name="MacroCount" Text="0" FontSize="11"/></Border>
-                  <Button Tag="Recorder" Click="Navigate" Padding="10,6">●  Record</Button>
+                  <Border Background="#121F2D" CornerRadius="12" Padding="8,4" Margin="0,0,8,0"><TextBlock x:Name="MacroCount" Text="0" FontSize="11"/></Border>
+                  <Button Tag="Recorder" Click="Navigate" Background="#EF3348" BorderBrush="#EF3348" Padding="10,6">●  Record</Button>
                 </StackPanel>
               </DockPanel>
-              <TextBox x:Name="MacroSearch" Style="{StaticResource SearchField}" Grid.Row="1" Margin="18,0,18,12" TextChanged="MacroSearchChanged" ToolTip="Search recordings"/>
+              <Grid Grid.Row="1" Margin="18,0,18,12">
+                <TextBox x:Name="MacroSearch" Style="{StaticResource SearchField}" TextChanged="MacroSearchChanged" ToolTip="Search recordings"/>
+                <TextBlock Text="Search recordings" Foreground="#788A9D" FontSize="12" VerticalAlignment="Center" Margin="30,0,0,0" IsHitTestVisible="False">
+                  <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=MacroSearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
+              </Grid>
               <Grid Grid.Row="2">
                 <ListBox x:Name="MacroList" SelectionChanged="MacroSelected" Margin="14,0">
+                  <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                      <Setter Property="Padding" Value="0"/>
+                      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter>
+                    </Style>
+                  </ListBox.ItemContainerStyle>
                   <ListBox.ItemTemplate>
                     <DataTemplate>
-                      <Border Background="#0E273B" BorderBrush="#1E4563" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,7">
+                      <Border x:Name="RecordingRow" Background="#0B141E" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="12" Padding="11,10" Margin="0,0,0,6">
                         <Grid>
                           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="28"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                           <DockPanel>
-                            <TextBlock Text="〽" Foreground="#4C9CFF" FontSize="14" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="RecordingIcon" Text="≋" Foreground="#75899D" FontSize="14" Margin="0,0,8,0"/>
                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                             <TextBlock DockPanel.Dock="Right" Text="›" Foreground="#6F94B2" FontSize="16"/>
                           </DockPanel>
-                          <UniformGrid Grid.Row="1" Columns="32" Margin="0,8,0,3" VerticalAlignment="Center">
-                            <Border Height="10" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="8" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="22" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="13" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="20" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="9" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="17" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="12" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="21" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="8" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="16" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="11" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="20" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="9" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="12" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="22" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="8" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="15" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="10" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="19" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="8" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="17" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="12" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="21" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="10" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="9" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="16" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="11" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="20" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="9" Background="#2A76C9" CornerRadius="2" Margin="1"/>
-                          </UniformGrid>
+                          <local:RecordingWaveform x:Name="RecordingWaveform" Grid.Row="1" ActionCount="{Binding Actions.Count}" Height="28" Margin="0,8,0,3"/>
                           <StackPanel Grid.Row="2" Orientation="Horizontal"><TextBlock Text="{Binding Actions.Count, StringFormat={}{0} actions}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/><TextBlock Text="  ·  " Foreground="#617A91" FontSize="11"/><TextBlock Text="{Binding LoopMode}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/><TextBlock Text="  ·  " Foreground="#617A91" FontSize="11"/><TextBlock Text="{Binding MousePlaybackMode}" Foreground="#6F94B2" FontSize="11"/></StackPanel>
                         </Grid>
                       </Border>
+                      <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                          <Setter TargetName="RecordingRow" Property="Background" Value="#0D1927"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                          <Setter TargetName="RecordingRow" Property="Background" Value="#102D4B"/>
+                          <Setter TargetName="RecordingRow" Property="BorderBrush" Value="#0E79FF"/>
+                          <Setter TargetName="RecordingWaveform" Property="Tint" Value="#0E79FF"/>
+                          <Setter TargetName="RecordingIcon" Property="Foreground" Value="#0E79FF"/>
+                        </DataTrigger>
+                      </DataTemplate.Triggers>
                     </DataTemplate>
                   </ListBox.ItemTemplate>
                 </ListBox>
+                <StackPanel x:Name="MacroEmptyState" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                  <TextBlock Text="No recordings found" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                  <TextBlock Text="Create a macro or change your search." Foreground="{StaticResource SecondaryBrush}" FontSize="12" Margin="0,5,0,0"/>
+                </StackPanel>
                 <ListBox x:Name="ActionList" Visibility="Collapsed" SelectionChanged="ActionSelected" Margin="14,0">
                   <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="0"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="ActionRow" BorderBrush="Transparent" BorderThickness="1" CornerRadius="12"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ActionRow" Property="BorderBrush" Value="#2C5B7D"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="ActionRow" Property="BorderBrush" Value="#218BEE"/><Setter TargetName="ActionRow" Property="Background" Value="#0D2A43"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
@@ -338,36 +379,50 @@
                   </ListBox.ItemTemplate>
                 </ListBox>
               </Grid>
-              <StackPanel x:Name="LibraryFooter" Grid.Row="3" Margin="14,10">
-                <Button Style="{StaticResource PrimaryButton}" Click="NewMacro" Margin="0,0,0,7">＋  New Macro</Button>
-                <UniformGrid Columns="3" Margin="0,0,0,7"><Button Click="DuplicateMacro" Padding="6,8" ToolTip="Duplicate selected macro">Copy</Button><Button Click="ImportMacro" Padding="6,8">Import</Button><Button Click="ExportMacro" Padding="6,8">Export</Button></UniformGrid>
-                <Grid x:Name="ActionFooter" Visibility="Collapsed"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox x:Name="AddActionBox" MinWidth="105" Margin="0,0,7,0"/><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Click="AddAction" Padding="11,8" Margin="0,0,7,0">＋ Add</Button><Button Grid.Column="2" Click="MoveActionUp" Width="38" Margin="0,0,6,0">↑</Button><Button Grid.Column="3" Click="MoveActionDown" Width="38" Margin="0,0,6,0">↓</Button><Button Grid.Column="4" Style="{StaticResource DangerButton}" Click="RemoveAction" Padding="10,8">Remove</Button></Grid>
+              <StackPanel Grid.Row="3" Background="#09111B">
+                <Grid x:Name="LibraryFooter" Margin="14,6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <Button Click="NewMacro" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" HorizontalAlignment="Left" Padding="8,5">＋  New</Button>
+                  <Button Grid.Column="1" Click="OpenMacroMenu" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" Padding="8,5" ToolTip="Macro actions">•••
+                    <Button.ContextMenu><ContextMenu Background="#121F2D" Foreground="White" BorderBrush="#1F3348">
+                      <MenuItem Header="Duplicate" Click="DuplicateMacro"/>
+                      <MenuItem Header="Import JSON…" Click="ImportMacro"/>
+                      <MenuItem Header="Export JSON…" Click="ExportMacro"/>
+                      <Separator/>
+                      <MenuItem Header="Delete" Click="DeleteMacro"/>
+                    </ContextMenu></Button.ContextMenu>
+                  </Button>
+                </Grid>
+                <Grid x:Name="ActionFooter" Visibility="Collapsed" Margin="14,6"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ComboBox x:Name="AddActionBox" MinWidth="105" Margin="0,0,7,0"/><Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Click="AddAction" Padding="11,8" Margin="0,0,7,0">＋ Add</Button><Button Grid.Column="2" Click="MoveActionUp" Width="38" Margin="0,0,6,0">↑</Button><Button Grid.Column="3" Click="MoveActionDown" Width="38" Margin="0,0,6,0">↓</Button><Button Grid.Column="4" Click="RemoveAction" Style="{StaticResource DangerButton}" HorizontalAlignment="Right" Padding="9,6">Remove</Button><Button Grid.Column="5" Click="ReturnToMacroOverview" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" Padding="8,6">Overview</Button></Grid>
               </StackPanel>
             </Grid>
           </Border>
-          <Border Grid.Column="1" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="16">
+          <Border Grid.Column="1" Background="#081019" BorderBrush="#1F3348" BorderThickness="1,0,0,0" Padding="16">
             <Grid>
               <ScrollViewer x:Name="MacroOverviewCard" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="MacroInspectorOverview">
                   <TextBlock Text="RECORDING DETAILS" Style="{StaticResource Section}"/>
-                  <TextBox x:Name="MacroName" FontSize="21" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="MacroNameChanged" Margin="0,0,0,16"/>
-                  <Border Style="{StaticResource Card}" Padding="14">
+                  <Border Background="#0E1925" BorderBrush="#1F3348" BorderThickness="1" CornerRadius="13" Padding="14" Margin="0,8,0,0">
                     <StackPanel>
-                      <TextBlock Text="{Binding ElementName=MacroName, Path=Text}" FontSize="17" FontWeight="SemiBold"/>
-                      <UniformGrid Columns="28" Height="44" Margin="0,12,0,5" VerticalAlignment="Center">
-                        <Border Height="15" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="30" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="20" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="36" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="17" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="28" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="14" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="32" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="21" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="34" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="15" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="30" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="34" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="14" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="26" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="34" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="14" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="29" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="16" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="31" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="15" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="28" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="18" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="32" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="15" Background="#2A76C9" CornerRadius="2" Margin="1"/><Border Height="25" Background="#2A76C9" CornerRadius="2" Margin="1"/>
-                      </UniformGrid>
-                      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="{Binding ElementName=OverviewCount, Path=Text}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/><TextBlock Grid.Column="1" Text="{Binding ElementName=OverviewMode, Path=Text}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></Grid>
-                      <Button Style="{StaticResource PrimaryButton}" Click="PlayClicked" Margin="0,13,0,0">▶  Play Recording</Button>
+                      <TextBox x:Name="MacroName" FontSize="17" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="MacroNameChanged"/>
+                      <local:RecordingWaveform x:Name="InspectorWaveform" Height="46" Tint="#0E79FF" Margin="0,10,0,8"/>
+                      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="InspectorActionSummary" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/><TextBlock x:Name="InspectorLoopSummary" Grid.Column="1" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></Grid>
+                      <Button x:Name="PlayRecordingButton" Style="{StaticResource PrimaryButton}" Click="PlayClicked" Margin="0,13,0,0">▶  Play Recording</Button>
                     </StackPanel>
                   </Border>
                   <TextBlock Text="PLAYBACK" Style="{StaticResource Section}" Margin="0,20,0,8"/>
                   <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions><TextBlock Text="Repeat" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><ComboBox x:Name="LoopModeBox" Grid.Column="1" SelectionChanged="MacroOptionChanged"/></Grid>
-                  <Grid Margin="0,9,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions><TextBlock Text="Count" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><TextBox x:Name="LoopCountBox" Grid.Column="1" TextChanged="MacroOptionChanged"/></Grid>
-                  <TextBlock Text="MOUSE PLAYBACK" Style="{StaticResource Section}" Margin="0,16,0,8"/>
-                  <ComboBox x:Name="PlaybackModeBox" SelectionChanged="MacroOptionChanged" Margin="0,0,0,12"/>
-                  <Border Style="{StaticResource Card}" Padding="11"><StackPanel><TextBlock Text="RECORDED CONTENT" Style="{StaticResource Section}"/><TextBlock Text="⌨  Keyboard events" Foreground="{StaticResource SecondaryBrush}" Margin="0,3"/><TextBlock Text="◉  Mouse events" Foreground="{StaticResource SecondaryBrush}" Margin="0,3"/><TextBlock Text="◎  Target" Foreground="{StaticResource SecondaryBrush}" Margin="0,3"/></StackPanel></Border>
-                  <Button Style="{StaticResource PrimaryButton}" Click="EditActions" Margin="0,16,0,0">Edit Actions</Button>
+                  <Grid x:Name="LoopCountRow" Visibility="Collapsed" Margin="0,9,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions><TextBlock Text="Times" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><TextBox x:Name="LoopCountBox" Grid.Column="1" TextChanged="MacroOptionChanged"/></Grid>
+                  <Grid Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="200"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="Mouse playback" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Background="#121F2D" CornerRadius="7" Padding="3">
+                      <UniformGrid Columns="2"><RadioButton x:Name="BackgroundModeButton" Content="Background" Style="{StaticResource PlaybackSegment}" GroupName="MacroPlaybackMode" Checked="PlaybackModeChanged"/><RadioButton x:Name="CompatibilityModeButton" Content="Compatibility" Style="{StaticResource PlaybackSegment}" GroupName="MacroPlaybackMode" Checked="PlaybackModeChanged"/></UniformGrid>
+                    </Border>
+                  </Grid>
+                  <TextBlock Text="RECORDED CONTENT" Style="{StaticResource Section}" Margin="0,20,0,6"/>
+                  <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="⌨" Foreground="#398BFF"/><TextBlock Grid.Column="1" Text="Keyboard" Foreground="{StaticResource SecondaryBrush}"/><TextBlock x:Name="InspectorKeyboardCount" Grid.Column="2" FontWeight="SemiBold"/></Grid>
+                  <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="♙" Foreground="#B351E2"/><TextBlock Grid.Column="1" Text="Mouse" Foreground="{StaticResource SecondaryBrush}"/><TextBlock x:Name="InspectorMouseCount" Grid.Column="2" FontWeight="SemiBold"/></Grid>
+                  <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="◎" Foreground="#E69527"/><TextBlock Grid.Column="1" Text="Target" Foreground="{StaticResource SecondaryBrush}"/><TextBlock x:Name="InspectorTargetName" Grid.Column="2" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="145"/></Grid>
+                  <Button Click="EditActions" HorizontalAlignment="Right" Foreground="#0E79FF" Background="#0D1B2A" BorderBrush="Transparent" Margin="0,17,0,0">☷  Edit Actions</Button>
                   <StackPanel Visibility="Collapsed">
                     <TextBlock x:Name="OverviewTitle"/><TextBlock x:Name="OverviewTarget"/><TextBlock x:Name="OverviewCount"/>
                     <TextBlock x:Name="OverviewMode"/><TextBlock x:Name="OverviewInput"/><TextBlock x:Name="InspectorTarget"/>
@@ -389,6 +444,11 @@
                   <StackPanel x:Name="ActionAdvancedFields"/><Button Style="{StaticResource DangerButton}" Click="DeleteMacro" Margin="0,24,0,0">Delete Macro</Button>
                 </StackPanel>
               </ScrollViewer>
+              <StackPanel x:Name="MacroNoSelection" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock Text="▣" FontSize="28" Foreground="#71859A" HorizontalAlignment="Center"/>
+                <TextBlock Text="No Macro Selected" FontWeight="SemiBold" FontSize="16" HorizontalAlignment="Center" Margin="0,9,0,0"/>
+                <TextBlock Text="Create a macro to begin adding actions." Foreground="{StaticResource SecondaryBrush}" FontSize="12" Margin="0,6,0,0"/>
+              </StackPanel>
             </Grid>
           </Border>
         </Grid>

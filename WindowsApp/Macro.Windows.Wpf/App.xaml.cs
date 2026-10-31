@@ -1,4 +1,7 @@
+using System.IO;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Macro.Windows;
@@ -8,14 +11,46 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         var smokeTest = e.Args.Contains("--smoke-test", StringComparer.OrdinalIgnoreCase);
+        var captureIndex = Array.FindIndex(e.Args, arg => arg.Equals("--capture-ui", StringComparison.OrdinalIgnoreCase));
+        var captureUi = captureIndex >= 0;
         DispatcherUnhandledException += (_, args) =>
         {
-            if (!smokeTest) MessageBox.Show(args.Exception.Message, "Macro", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!smokeTest && !captureUi) MessageBox.Show(args.Exception.Message, "Macro", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
-            if (smokeTest) Shutdown(1);
+            if (smokeTest || captureUi) Shutdown(1);
         };
         base.OnStartup(e);
-        if (smokeTest)
+        if (captureUi)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            {
+                if (captureIndex + 1 >= e.Args.Length || Current.MainWindow is not MainWindow window)
+                {
+                    Shutdown(2);
+                    return;
+                }
+                var directory = e.Args[captureIndex + 1];
+                Directory.CreateDirectory(directory);
+                foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
+                {
+                    window.ShowPageForCapture(page);
+                    window.UpdateLayout();
+                    var dpi = VisualTreeHelper.GetDpi(window);
+                    var bitmap = new RenderTargetBitmap(
+                        Math.Max(1, (int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX)),
+                        Math.Max(1, (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY)),
+                        96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
+                    bitmap.Render(window);
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(directory, page.ToLowerInvariant() + ".png"));
+                    encoder.Save(stream);
+                }
+                window.Close();
+                Shutdown(0);
+            });
+        }
+        else if (smokeTest)
         {
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
             {

@@ -31,3 +31,14 @@ jobs:
           if ($process.ExitCode -ne 0) {
             throw "Macro UI smoke test failed with exit code $($process.ExitCode)."
           }
+      - name: Capture Windows pages for visual review
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "WindowsApp/artifacts/ci-win-x64/Macro.exe" -ArgumentList "--capture-ui WindowsApp/artifacts/ui-capture" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Macro UI capture failed with exit code $($process.ExitCode)."
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-ui-pages
+          path: WindowsApp/artifacts/ui-capture/*.png
