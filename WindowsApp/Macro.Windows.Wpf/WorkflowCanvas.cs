@@ -21,6 +21,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private Vector pan = new(70, 50);
     private double zoom = 1;
     public event Action<AutomationNode?>? NodeSelected;
+    public event Action<AutomationNode>? NodeContextRequested;
     public event Action<AutomationNode, AutomationNode, AutomationBranch?>? ConnectionRequested;
     public event Action? WorkflowChanged;
     public Func<Guid?, string>? MacroDetailResolver { get; set; }
@@ -152,7 +153,21 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
-        Focus(); CaptureMouse(); var p = e.GetPosition(this);
+        Focus(); var p = e.GetPosition(this);
+        if (e.ChangedButton == MouseButton.Right && workflow is not null)
+        {
+            var contextNode = workflow.Nodes.LastOrDefault(n => Rect(n).Contains(Logical(p)));
+            if (contextNode is not null)
+            {
+                selectedNodeId = contextNode.Id;
+                NodeSelected?.Invoke(contextNode);
+                NodeContextRequested?.Invoke(contextNode);
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+        }
+        CaptureMouse();
         if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || e.ChangedButton == MouseButton.Left && PanToolActive) { fitOnResize = false; panning = true; panOrigin = p; e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Left || workflow is null) return;
         var logical = Logical(p);

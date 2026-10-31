@@ -95,7 +95,9 @@ public partial class App : Application
                     && window.Left + window.ActualWidth <= area.Right + 2
                     && window.Top + window.ActualHeight <= area.Bottom + 2
                     && mainWindow.VerifyMacroSelectorForSmoke()
-                    && mainWindow.VerifyAutomationPanelsForSmoke();
+                    && mainWindow.VerifyAutomationPanelsForSmoke()
+                    && mainWindow.VerifyRecordedLibraryForSmoke()
+                    && mainWindow.VerifyNodeContextMenuForSmoke();
                 window?.Close();
                 Shutdown(valid ? 0 : 2);
             });

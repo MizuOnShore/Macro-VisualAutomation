@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -75,6 +76,7 @@ public partial class MainWindow : Window
         BuildNodeLibrary();
 
         FlowCanvas.NodeSelected += SelectNode;
+        FlowCanvas.NodeContextRequested += ShowNodeContextMenu;
         FlowCanvas.ConnectionRequested += (source, target, branch) =>
         {
             SelectNode(source);
@@ -184,6 +186,26 @@ public partial class MainWindow : Window
         SetAutomationPanels(true, true);
         return closed && AutomationLibraryColumn.Width.Value > 0 && AutomationInspectorColumn.Width.Value > 0
             && AutomationLibraryPanel.Visibility == Visibility.Visible && AutomationInspectorPanel.Visibility == Visibility.Visible;
+    }
+    internal bool VerifyRecordedLibraryForSmoke()
+    {
+        var recording = new MacroDefinition { Name = "Smoke Test Recording" };
+        macros.Add(recording);
+        BuildNodeLibrary();
+        var visible = NodeLibrary.Children.OfType<Button>().Any(button => ReferenceEquals(button.Tag, recording));
+        macros.Remove(recording);
+        BuildNodeLibrary();
+        return visible && NodeLibrary.Children.OfType<Button>().All(button => !ReferenceEquals(button.Tag, recording));
+    }
+    internal bool VerifyNodeContextMenuForSmoke()
+    {
+        var node = SelectedAutomation?.Nodes.FirstOrDefault(n => n.Kind == AutomationNodeKind.Start);
+        if (node is null) return false;
+        var items = CreateNodeContextMenu(node).Items.OfType<MenuItem>().ToList();
+        return items.Any(item => Equals(item.Header, "Duplicate"))
+            && items.Any(item => Equals(item.Header, "Rename…"))
+            && items.Any(item => Equals(item.Header, "Disable"))
+            && items.Any(item => Equals(item.Header, "Delete") && !item.IsEnabled);
     }
     internal void ShowSecondaryStateForCapture(string state)
     {
@@ -319,6 +341,8 @@ public partial class MainWindow : Window
         RefreshMacroList(select ?? SelectedMacro);
         if (MacroList.SelectedItem is null && MacroList.Items.Count > 0) MacroList.SelectedIndex = 0;
         LoadSelectedMacro();
+        BuildNodeLibrary();
+        NodeMacroBox.Items.Refresh();
     }
 
     private void RefreshMacroList(MacroDefinition? select)
@@ -399,6 +423,7 @@ public partial class MainWindow : Window
         macro.Name = string.IsNullOrWhiteSpace(MacroName.Text) ? "Untitled Macro" : MacroName.Text;
         OverviewTitle.Text = macro.Name;
         MacroList.Items.Refresh();
+        BuildNodeLibrary();
         SaveAll();
     }
 
@@ -581,6 +606,7 @@ public partial class MainWindow : Window
         InspectorActions.Text = OverviewCount.Text;
         UpdateMacroInspectorDetails();
         MacroList.Items.Refresh();
+        BuildNodeLibrary();
     }
 
     private void NewMacro(object sender, RoutedEventArgs e)
@@ -613,25 +639,27 @@ public partial class MainWindow : Window
 
     private void ImportMacro(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*" };
+        var dialog = new OpenFileDialog { Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*", Multiselect = true };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
-            MacroDefinition? one = null;
-            try { one = storage.Import<MacroDefinition>(dialog.FileName); } catch { }
-            if (one?.Actions is not null)
+            var imported = new List<MacroDefinition>();
+            foreach (var file in dialog.FileNames)
             {
-                one.Id = Guid.NewGuid();
-                macros.Add(one);
-                RefreshMacros(one);
+                MacroDefinition? one = null;
+                try { one = storage.Import<MacroDefinition>(file); } catch { }
+                if (one?.Actions is not null) imported.Add(one);
+                else imported.AddRange(storage.Import<List<MacroDefinition>>(file) ?? []);
             }
-            else
+            if (imported.Count == 0)
             {
-                var many = storage.Import<List<MacroDefinition>>(dialog.FileName) ?? [];
-                foreach (var item in many) item.Id = Guid.NewGuid();
-                macros.AddRange(many);
-                RefreshMacros(many.LastOrDefault());
+                MessageBox.Show(this, "No macros were found in the selected files.", "Import recordings", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
+            foreach (var macro in imported) macro.Id = Guid.NewGuid();
+            macros.AddRange(imported);
+            RefreshMacros(imported.Last());
+            AutomationSearch.Text = "";
             SaveAll();
         }
         catch (Exception ex)
@@ -870,16 +898,20 @@ public partial class MainWindow : Window
         NodeLibrary.Children.Clear();
         var query = AutomationSearch?.Text?.Trim() ?? "";
         AddLibrarySection("MACROS");
-        foreach (var macro in macros.Where(macro => string.IsNullOrWhiteSpace(query) || macro.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)))
-            NodeLibrary.Children.Add(CreateLibraryButton(macro.Name, $"{macro.Actions.Count} actions · {macro.MousePlaybackMode}", "⚡", "#1785FF", macro));
-        if (NodeLibrary.Children.Count == 1)
+        var visibleMacros = macros.Where(macro => string.IsNullOrWhiteSpace(query) || macro.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        foreach (var macro in visibleMacros)
+            NodeLibrary.Children.Add(CreateLibraryButton(macro.Name, $"{macro.Actions.Count} actions", "◇", "#1785FF", macro));
+        if (visibleMacros.Count == 0)
         {
-            var empty = new TextBlock { Text = "Record or create a macro first.", Foreground = new SolidColorBrush(Color.FromRgb(141, 163, 184)), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(3, 0, 3, 10) };
+            var empty = new TextBlock { Text = string.IsNullOrWhiteSpace(query) ? "No recordings yet. Record or import a macro." : "No recordings match this search.", Foreground = new SolidColorBrush(Color.FromRgb(141, 163, 184)), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(3, 0, 3, 10) };
             NodeLibrary.Children.Add(empty);
         }
+        var import = new Button { Content = "＋  Import recordings…", Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4C9CFF")), Background = Brushes.Transparent, BorderBrush = Brushes.Transparent, Padding = new Thickness(5, 4, 5, 4), HorizontalContentAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 1, 0, 9), ToolTip = "Import a macro JSON file exported from macOS or Windows" };
+        import.Click += ImportMacro;
+        NodeLibrary.Children.Add(import);
         AddLibrarySection("FLOW");
         foreach (var kind in Enum.GetValues<AutomationNodeKind>()
-            .Where(kind => string.IsNullOrWhiteSpace(query) || NodeTitle(kind).Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+            .Where(kind => kind != AutomationNodeKind.Macro && (string.IsNullOrWhiteSpace(query) || NodeTitle(kind).Contains(query, StringComparison.CurrentCultureIgnoreCase))))
             NodeLibrary.Children.Add(CreateLibraryButton(NodeTitle(kind), FlowSubtitle(kind), NodeGlyph(kind), NodeColorHex(kind), kind));
     }
 
@@ -1190,6 +1222,97 @@ public partial class MainWindow : Window
         automation.Connections.RemoveAll(link => link.SourceNodeID == selectedNode.Id || link.TargetNodeID == selectedNode.Id);
         SelectNode(null);
         RefreshAutomationDetail();
+        SaveAll();
+    }
+
+    private void ShowNodeContextMenu(AutomationNode node)
+    {
+        SelectNode(node);
+        CreateNodeContextMenu(node).IsOpen = true;
+    }
+
+    private ContextMenu CreateNodeContextMenu(AutomationNode node)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = FlowCanvas,
+            Placement = PlacementMode.MousePoint,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#101C2A")),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#31536C")),
+            Foreground = Brushes.White
+        };
+        void AddItem(string title, Action action, bool enabled = true, string? color = null)
+        {
+            var item = new MenuItem
+            {
+                Header = title,
+                IsEnabled = enabled,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color ?? "#F4F7FA")),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#101C2A")),
+                Padding = new Thickness(9, 6, 24, 6)
+            };
+            item.Click += (_, _) => action();
+            menu.Items.Add(item);
+        }
+        AddItem("Duplicate", () => DuplicateNode(node));
+        AddItem("Rename…", () => RenameNode(node));
+        AddItem(node.IsEnabled ? "Disable" : "Enable", () => ToggleNodeEnabled(node));
+        menu.Items.Add(new Separator());
+        AddItem("Delete", () => DeleteNode(this, new RoutedEventArgs()), node.Kind != AutomationNodeKind.Start, "#F06A79");
+        return menu;
+    }
+
+    private void DuplicateNode(AutomationNode node)
+    {
+        if (SelectedAutomation is not { } automation || !automation.Nodes.Contains(node)) return;
+        var copy = JsonSerializer.Deserialize<AutomationNode>(JsonSerializer.Serialize(node));
+        if (copy is null) return;
+        copy.Id = Guid.NewGuid();
+        copy.Position = new WorkflowPoint { X = node.Position.X + 36, Y = node.Position.Y + 36 };
+        copy.CustomTitle = $"{node.Title} Copy";
+        automation.Nodes.Add(copy);
+        automation.LastEdited = CocoaNow();
+        SelectNode(copy);
+        SaveAll();
+    }
+
+    private void RenameNode(AutomationNode node)
+    {
+        if (SelectedAutomation is not { } automation || !automation.Nodes.Contains(node)) return;
+        var dialog = new Window
+        {
+            Title = "Rename Node", Owner = this, Width = 320, Height = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.ToolWindow, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0E1925")),
+            Foreground = Brushes.White
+        };
+        var layout = new StackPanel { Margin = new Thickness(16) };
+        layout.Children.Add(new TextBlock { Text = "Node name", Margin = new Thickness(0, 0, 0, 7) });
+        var input = new TextBox { Text = node.Title, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#121F2D")), Foreground = Brushes.White, BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#31536C")), Padding = new Thickness(8, 5, 8, 5) };
+        layout.Children.Add(input);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+        var cancel = new Button { Content = "Cancel", MinWidth = 66, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+        cancel.Click += (_, _) => dialog.DialogResult = false;
+        var save = new Button { Content = "Save", MinWidth = 66, IsDefault = true, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0E79FF")) };
+        save.Click += (_, _) => dialog.DialogResult = true;
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(save);
+        layout.Children.Add(buttons);
+        dialog.Content = layout;
+        dialog.Loaded += (_, _) => { input.Focus(); input.SelectAll(); };
+        if (dialog.ShowDialog() != true) return;
+        node.CustomTitle = string.IsNullOrWhiteSpace(input.Text) ? null : input.Text.Trim();
+        automation.LastEdited = CocoaNow();
+        SelectNode(node);
+        SaveAll();
+    }
+
+    private void ToggleNodeEnabled(AutomationNode node)
+    {
+        if (SelectedAutomation is not { } automation || !automation.Nodes.Contains(node)) return;
+        node.IsEnabled = !node.IsEnabled;
+        automation.LastEdited = CocoaNow();
+        SelectNode(node);
         SaveAll();
     }
 
