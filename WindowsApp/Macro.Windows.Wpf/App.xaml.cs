@@ -83,12 +83,13 @@ public partial class App : Application
             {
                 var window = Current.MainWindow;
                 var area = SystemParameters.WorkArea;
-                var valid = window is MainWindow
+                var valid = window is MainWindow mainWindow
                     && window.IsVisible
                     && window.ActualWidth >= 700 && window.ActualHeight >= 500
                     && window.Left >= area.Left - 2 && window.Top >= area.Top - 2
                     && window.Left + window.ActualWidth <= area.Right + 2
-                    && window.Top + window.ActualHeight <= area.Bottom + 2;
+                    && window.Top + window.ActualHeight <= area.Bottom + 2
+                    && mainWindow.VerifyMacroSelectorForSmoke();
                 window?.Close();
                 Shutdown(valid ? 0 : 2);
             });

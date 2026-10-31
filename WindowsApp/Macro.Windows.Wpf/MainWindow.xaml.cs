@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -157,6 +158,17 @@ public partial class MainWindow : Window
     }
 
     internal void ShowPageForCapture(string page) => NavigateTo(page);
+    internal bool VerifyMacroSelectorForSmoke()
+    {
+        NavigateTo("Macros");
+        LoopModeBox.ApplyTemplate();
+        var popup = LoopModeBox.Template.FindName("PART_Popup", LoopModeBox) as Popup;
+        LoopModeBox.IsDropDownOpen = true;
+        LoopModeBox.UpdateLayout();
+        var opened = popup?.IsOpen == true && LoopModeBox.Items.Count > 0;
+        LoopModeBox.IsDropDownOpen = false;
+        return opened;
+    }
     internal void ShowSecondaryStateForCapture(string state)
     {
         switch (state)
