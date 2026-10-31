@@ -61,8 +61,8 @@ public partial class MainWindow : Window
         LogList.ItemsSource = logEntries;
         UpdateLogEmptyState();
         Directory.CreateDirectory(storage.DirectoryPath);
-        macros = SafeLoad(storage.LoadMacros, [MacroDefinition.Example()]);
-        automations = SafeLoad(storage.LoadAutomations, [AutomationDefinition.Blank()]);
+        macros = SafeLoad(storage.LoadMacros, []);
+        automations = SafeLoad(storage.LoadAutomations, []);
         FlowCanvas.MacroDetailResolver = id =>
         {
             var macro = macros.FirstOrDefault(item => item.Id == id);

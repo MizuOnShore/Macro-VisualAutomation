@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class AppModel: ObservableObject {
     @Published var destination: SidebarDestination? = .macros
-    @Published var macros: [MacroDefinition] = [.example] {
+    @Published var macros: [MacroDefinition] = [] {
         didSet { scheduleLibraryPersistence() }
     }
     @Published var selectedMacroID: UUID?
@@ -141,7 +141,6 @@ final class AppModel: ObservableObject {
             logs.append(LogEntry(date: .now, level: .error, message: "Could not load macro library: \(error.localizedDescription)"))
         }
         selectedMacroID = macros.first?.id
-        automationStore.seedIfNeeded(macros: macros)
         automationObservation = automationStore.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -211,7 +210,7 @@ final class AppModel: ObservableObject {
     func reloadLibrary() {
         do {
             let saved = try storage.loadLibrary()
-            macros = saved.isEmpty ? [.example] : saved
+            macros = saved
             selectedMacroID = macros.first?.id
             log("Loaded \(macros.count) macros from disk")
         } catch {

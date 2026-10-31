@@ -58,9 +58,8 @@ final class AutomationStore: ObservableObject {
     }
 
     func seedIfNeeded(macros: [MacroDefinition]) {
-        guard automations.isEmpty else { return }
-        automations = [.example(macros: macros)]
-        selectedAutomationID = automations.first?.id
+        // New installations start with an empty automation library. Existing
+        // saved automations are loaded by the store and remain unchanged.
     }
 
     func selectAutomation(_ id: UUID?) {
