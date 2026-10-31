@@ -9,6 +9,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Macro.Core;
 using Microsoft.Win32;
 
@@ -37,6 +38,8 @@ public partial class MainWindow : Window
     private bool actionEditing;
     private bool automationLibraryOpen = true;
     private bool automationInspectorOpen = true;
+    private readonly DispatcherTimer recordingHudTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private DateTime recordingStartedAt;
 
     private sealed class UiLogEntry
     {
@@ -54,6 +57,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        recordingHudTimer.Tick += (_, _) => UpdateRecordingHud();
         LogList.ItemsSource = logEntries;
         UpdateLogEmptyState();
         Directory.CreateDirectory(storage.DirectoryPath);
@@ -694,6 +698,8 @@ public partial class MainWindow : Window
         try
         {
             NavigateTo("Recorder");
+            RecordingHud.Visibility = Visibility.Visible;
+            RecordingHudTimer.Text = "00:03";
             for (var i = 3; i > 0; i--)
             {
                 RecordState.Text = $"STARTING IN {i}";
@@ -703,10 +709,15 @@ public partial class MainWindow : Window
                 RecordMainButton.Content = "×  Cancel Countdown";
                 RecordButton.Content = "×";
                 RecordHotkey.Text = "F7";
+                RecordingHudTimer.Text = $"00:0{i}";
                 ViewSavedMacroButton.Visibility = Visibility.Collapsed;
                 await Task.Delay(1000, token);
             }
             recorder.Start(selectedTarget);
+            recordingStartedAt = DateTime.UtcNow;
+            recordingHudTimer.Start();
+            RecordingHud.Visibility = Visibility.Visible;
+            UpdateRecordingHud();
             RecordState.Text = "RECORDING · 0 ACTIONS";
             RecordTitle.Text = "Capturing input";
             RecordDescription.Text = "Press F7 or Stop when you are finished.";
@@ -739,6 +750,8 @@ public partial class MainWindow : Window
             return;
         }
         if (!recorder.IsRecording) return;
+        recordingHudTimer.Stop();
+        RecordingHud.Visibility = Visibility.Collapsed;
         var actions = recorder.Stop();
         if (actions.Count > 0)
         {
@@ -762,6 +775,8 @@ public partial class MainWindow : Window
 
     private void ResetRecorderUi(string message)
     {
+        recordingHudTimer.Stop();
+        RecordingHud.Visibility = Visibility.Collapsed;
         RecordState.Text = message.ToUpperInvariant();
         RecordState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             message.StartsWith("Saved", StringComparison.OrdinalIgnoreCase) ? "#28C775" : "#8DA3B8"));
@@ -1301,6 +1316,15 @@ public partial class MainWindow : Window
             MessageBox.Show(this, ex.Message, "Cannot run node", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         UpdateState();
+    }
+
+    private void HudStopRecording(object sender, RoutedEventArgs e) => StopRecording();
+
+    private void UpdateRecordingHud()
+    {
+        if (!recorder.IsRecording) return;
+        var elapsed = DateTime.UtcNow - recordingStartedAt;
+        RecordingHudTimer.Text = $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
     }
 
     private void DuplicateNode(AutomationNode node)

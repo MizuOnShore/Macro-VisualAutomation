@@ -622,13 +622,13 @@
             <Grid>
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="150"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
               <StackPanel Grid.Row="0"><TextBlock Text="WORKFLOWS" Style="{StaticResource Section}"/><TextBox x:Name="AutomationSearch" Style="{StaticResource SearchField}" TextChanged="AutomationSearchChanged" ToolTip="Search automations and nodes"/></StackPanel>
-              <ListBox x:Name="AutomationList" Grid.Row="1" SelectionChanged="AutomationSelected">
+              <ListBox x:Name="AutomationList" Grid.Row="1" MaxHeight="150" SelectionChanged="AutomationSelected">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel>
@@ -787,5 +787,13 @@
         </Grid>
       </Grid>
     </Grid>
+    <Border x:Name="RecordingHud" Panel.ZIndex="50" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0" Background="#E9101925" BorderBrush="#7A2739" BorderThickness="1" CornerRadius="14" Padding="12,8">
+      <StackPanel Orientation="Horizontal">
+        <Ellipse Width="9" Height="9" Fill="#EF3348" Margin="0,0,8,0" VerticalAlignment="Center"/>
+        <TextBlock Text="Recording" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <TextBlock x:Name="RecordingHudTimer" Text="00:00" Foreground="#FF8391" FontFamily="Consolas" FontWeight="Bold" Margin="12,0,12,0" VerticalAlignment="Center"/>
+        <Button Click="HudStopRecording" Padding="8,4" Background="#5A2431" BorderBrush="#824052">Stop</Button>
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

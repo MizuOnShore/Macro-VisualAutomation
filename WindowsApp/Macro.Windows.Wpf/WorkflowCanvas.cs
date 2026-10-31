@@ -118,8 +118,8 @@ internal sealed class WorkflowCanvas : FrameworkElement
         dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(35, accent.R, accent.G, accent.B)), null, new Rect(r.X + 12, r.Y + 14, 38, 38), 9, 9);
         Text(dc, Glyph(node.Kind), new(r.X + 22, r.Y + 23), 15, new SolidColorBrush(accent), semibold);
         var title = node.Kind == AutomationNodeKind.Macro ? MacroTitleResolver?.Invoke(node.MacroID) ?? node.Title : node.Title;
-        Text(dc, title, new(r.X + 62, r.Y + 15), 13, Brushes.White, semibold);
-        Text(dc, Detail(node), new(r.X + 62, r.Y + 40), 10.5, new SolidColorBrush(C("8CA1B5")), normal);
+        Text(dc, ShortText(title, 22), new(r.X + 62, r.Y + 15), 13, Brushes.White, semibold);
+        Text(dc, ShortText(Detail(node), 25), new(r.X + 62, r.Y + 40), 10.5, new SolidColorBrush(C("8CA1B5")), normal);
         if (node.Kind == AutomationNodeKind.IfElse)
         {
             dc.DrawEllipse(new SolidColorBrush(C("33C481")), null, OutputPoint(node, AutomationBranch.Yes), 5 / zoom, 5 / zoom);
@@ -220,4 +220,5 @@ internal sealed class WorkflowCanvas : FrameworkElement
     }
     private void Text(DrawingContext dc, string value, Point p, double size, Brush brush, Typeface face) => dc.DrawText(new FormattedText(value, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip), p);
     private static Color C(string hex) => (Color)ColorConverter.ConvertFromString("#" + hex);
+    private static string ShortText(string value, int max) => value.Length <= max ? value : value[..Math.Max(1, max - 1)] + "…";
 }
