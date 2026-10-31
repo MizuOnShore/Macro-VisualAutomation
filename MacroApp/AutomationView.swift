@@ -19,7 +19,7 @@ struct AutomationView: View {
                         HStack(spacing: 0) {
                             if showLibrary {
                                 AutomationLibraryPanel(store: store, macros: model.macros)
-                                    .frame(width: 250)
+                                    .frame(width: 285)
                                     .transition(.move(edge: .leading).combined(with: .opacity))
                                 Divider().opacity(0.55)
                             }
@@ -41,7 +41,7 @@ struct AutomationView: View {
                             )
                             if showLibrary {
                                 AutomationLibraryPanel(store: store, macros: model.macros)
-                                    .frame(width: min(230, proxy.size.width * 0.72))
+                                    .frame(width: min(270, proxy.size.width * 0.72))
                                     .background(MacroTheme.sidebar)
                                     .shadow(color: .black.opacity(0.2), radius: 18, x: 5)
                                     .transition(.move(edge: .leading))
@@ -346,6 +346,7 @@ private struct AutomationLibraryPanel: View {
             }
             .padding(14)
         }
+        .scrollIndicators(.hidden)
         .background(MacroTheme.sidebar)
     }
 
