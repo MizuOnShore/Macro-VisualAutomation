@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private bool automationInspectorOpen = true;
     private readonly DispatcherTimer recordingHudTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private DateTime recordingStartedAt;
+    private int pendingRecordActionCount;
     private Key recordHotkey = Key.F6;
     private Key stopHotkey = Key.F7;
     private Key playHotkey = Key.F8;
@@ -111,12 +112,7 @@ public partial class MainWindow : Window
             FlowCanvas.ActiveNodeId = id;
             SetStatus(id is null ? "Ready" : "Running workflow", id is null ? "#6E8498" : "#A774FF");
         });
-        recorder.ActionCountChanged += count => Ui(() =>
-        {
-            RecordState.Text = $"RECORDING · {count} ACTIONS";
-            RecordTitle.Text = "Capturing input";
-            RecordDescription.Text = $"{count} actions captured. Use Stop or {stopHotkey} when you are finished.";
-        });
+        recorder.ActionCountChanged += count => pendingRecordActionCount = count;
 
         SourceInitialized += (_, _) =>
         {
@@ -390,6 +386,24 @@ public partial class MainWindow : Window
             actionEditing = false;
             LoadSelectedMacro();
         }
+    }
+
+    private void MacroListRightClick(object sender, MouseButtonEventArgs e)
+    {
+        var element = e.OriginalSource as DependencyObject;
+        while (element is not null && element is not ListBoxItem) element = VisualTreeHelper.GetParent(element);
+        if (element is ListBoxItem item && item.DataContext is MacroDefinition macro)
+        {
+            MacroList.SelectedItem = macro;
+            item.IsSelected = true;
+        }
+    }
+
+    private void RenameSelectedMacro(object sender, RoutedEventArgs e)
+    {
+        if (SelectedMacro is not { } macro) return;
+        MacroName.Focus();
+        MacroName.SelectAll();
     }
 
     private void LoadSelectedMacro()
@@ -714,6 +728,7 @@ public partial class MainWindow : Window
         {
             NavigateTo("Recorder");
             RecordingHud.Visibility = Visibility.Visible;
+            RecordingHudLabel.Text = "Starting recording";
             RecordingHudTimer.Text = "00:03";
             for (var i = 3; i > 0; i--)
             {
@@ -724,14 +739,17 @@ public partial class MainWindow : Window
                 RecordMainButton.Content = "×  Cancel Countdown";
                 RecordButton.Content = "×";
                 RecordHotkey.Text = stopHotkey.ToString();
+                RecordingHudLabel.Text = $"Starting in {i}";
                 RecordingHudTimer.Text = $"00:0{i}";
                 ViewSavedMacroButton.Visibility = Visibility.Collapsed;
                 await Task.Delay(1000, token);
             }
             recorder.Start(selectedTarget);
+            pendingRecordActionCount = 0;
             recordingStartedAt = DateTime.UtcNow;
             recordingHudTimer.Start();
             RecordingHud.Visibility = Visibility.Visible;
+            RecordingHudLabel.Text = "Recording";
             UpdateRecordingHud();
             RecordState.Text = "RECORDING · 0 ACTIONS";
             RecordTitle.Text = "Capturing input";
@@ -768,6 +786,7 @@ public partial class MainWindow : Window
         recordingHudTimer.Stop();
         RecordingHud.Visibility = Visibility.Collapsed;
         var actions = recorder.Stop();
+        pendingRecordActionCount = 0;
         if (actions.Count > 0)
         {
             var macro = new MacroDefinition
@@ -792,6 +811,7 @@ public partial class MainWindow : Window
     {
         recordingHudTimer.Stop();
         RecordingHud.Visibility = Visibility.Collapsed;
+        RecordingHudLabel.Text = "Starting recording";
         RecordState.Text = message.ToUpperInvariant();
         RecordState.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
             message.StartsWith("Saved", StringComparison.OrdinalIgnoreCase) ? "#28C775" : "#8DA3B8"));
@@ -961,7 +981,7 @@ public partial class MainWindow : Window
         var text = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
         text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
         text.Children.Add(new TextBlock { Text = subtitle, Foreground = new SolidColorBrush(Color.FromRgb(141, 163, 184)), FontSize = 10, TextTrimming = TextTrimming.CharacterEllipsis });
-        stack.Children.Add(text); button.Content = stack; button.Click += AddNode; return button;
+        stack.Children.Add(text); button.Content = stack; button.Click += AddNode; button.PreviewMouseMove += LibraryPreviewMouseMove; return button;
     }
 
     private static string FlowSubtitle(AutomationNodeKind kind) => kind switch
@@ -1053,19 +1073,48 @@ public partial class MainWindow : Window
 
     private void AddNode(object sender, RoutedEventArgs e)
     {
-        if (SelectedAutomation is not { } automation || sender is not FrameworkElement element) return;
-        var kind = element.Tag is MacroDefinition ? AutomationNodeKind.Macro : element.Tag is AutomationNodeKind taggedKind ? taggedKind : default;
-        if (element.Tag is not MacroDefinition && element.Tag is not AutomationNodeKind) return;
+        if (sender is not FrameworkElement element) return;
+        AddNodeAt(element.Tag, null);
+    }
+
+    private void AddNodeAt(object? tag, Point? canvasPoint)
+    {
+        if (SelectedAutomation is not { } automation) return;
+        var kind = tag is MacroDefinition ? AutomationNodeKind.Macro : tag is AutomationNodeKind taggedKind ? taggedKind : default;
+        if (tag is not MacroDefinition && tag is not AutomationNodeKind) return;
         var node = new AutomationNode
         {
             Kind = kind,
-            Position = new WorkflowPoint { X = 280 + (automation.Nodes.Count % 4) * 205, Y = 110 + (automation.Nodes.Count / 4) * 120 }
+            Position = canvasPoint is { } point
+                ? new WorkflowPoint { X = Math.Max(0, point.X - 110), Y = Math.Max(0, point.Y - 38) }
+                : new WorkflowPoint { X = 280 + (automation.Nodes.Count % 4) * 205, Y = 110 + (automation.Nodes.Count / 4) * 120 }
         };
-        if (kind == AutomationNodeKind.Macro) node.MacroID = (element.Tag as MacroDefinition)?.Id ?? SelectedMacro?.Id ?? macros.FirstOrDefault()?.Id;
+        if (kind == AutomationNodeKind.Macro) node.MacroID = (tag as MacroDefinition)?.Id ?? SelectedMacro?.Id ?? macros.FirstOrDefault()?.Id;
         automation.Nodes.Add(node);
         SelectNode(node);
         RefreshAutomationDetail();
         SaveAll();
+    }
+
+    private void LibraryPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || sender is not Button button || button.Tag is not (MacroDefinition or AutomationNodeKind)) return;
+        var point = e.GetPosition(button);
+        if (Math.Abs(point.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(point.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        DragDrop.DoDragDrop(button, new DataObject("MacroAutomationNode", button.Tag), DragDropEffects.Copy);
+    }
+
+    private void FlowCanvasDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent("MacroAutomationNode") ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void FlowCanvasDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("MacroAutomationNode") || e.Data.GetData("MacroAutomationNode") is not object tag) return;
+        AddNodeAt(tag, FlowCanvas.GetLogicalPoint(e.GetPosition(FlowCanvas)));
+        e.Handled = true;
     }
 
     private void SelectNode(AutomationNode? node)
@@ -1337,9 +1386,16 @@ public partial class MainWindow : Window
 
     private void UpdateRecordingHud()
     {
-        if (!recorder.IsRecording) return;
+        if (!recorder.IsRecording)
+        {
+            if (recordingCountdown is null) RecordingHud.Visibility = Visibility.Collapsed;
+            return;
+        }
         var elapsed = DateTime.UtcNow - recordingStartedAt;
         RecordingHudTimer.Text = $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+        RecordState.Text = $"RECORDING · {pendingRecordActionCount} ACTIONS";
+        RecordTitle.Text = "Capturing input";
+        RecordDescription.Text = $"{pendingRecordActionCount} actions captured. Use Stop or {stopHotkey} when you are finished.";
     }
 
     private void DuplicateNode(AutomationNode node)

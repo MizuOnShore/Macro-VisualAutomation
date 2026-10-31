@@ -31,6 +31,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     public Guid? SelectedNodeId { get => selectedNodeId; set { selectedNodeId = value; InvalidateVisual(); } }
     public Guid? ActiveNodeId { get => activeNodeId; set { activeNodeId = value; InvalidateVisual(); } }
     public double Zoom => zoom;
+    public Point GetLogicalPoint(Point point) => Logical(point);
 
     public WorkflowCanvas() { Focusable = true; ClipToBounds = true; }
 

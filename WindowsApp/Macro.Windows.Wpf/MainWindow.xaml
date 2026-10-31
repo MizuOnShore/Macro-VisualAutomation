@@ -330,7 +330,16 @@
                 </TextBlock>
               </Grid>
               <Grid Grid.Row="2">
-                <ListBox x:Name="MacroList" SelectionChanged="MacroSelected" Margin="14,0">
+                <ListBox x:Name="MacroList" SelectionChanged="MacroSelected" PreviewMouseRightButtonDown="MacroListRightClick" Margin="14,0">
+                  <ListBox.ContextMenu>
+                    <ContextMenu Background="#121F2D" Foreground="White" BorderBrush="#1F3348">
+                      <MenuItem Header="Play Recording" Click="PlayClicked"/>
+                      <MenuItem Header="Duplicate" Click="DuplicateMacro"/>
+                      <MenuItem Header="Rename" Click="RenameSelectedMacro"/>
+                      <Separator/>
+                      <MenuItem Header="Delete Recording" Click="DeleteMacro"/>
+                    </ContextMenu>
+                  </ListBox.ContextMenu>
                   <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                       <Setter Property="Padding" Value="0"/>
@@ -646,7 +655,7 @@
             </Grid>
           </Border>
           <Grid Grid.Row="1" Grid.Column="1">
-            <local:WorkflowCanvas x:Name="FlowCanvas"/>
+            <local:WorkflowCanvas x:Name="FlowCanvas" AllowDrop="True" DragOver="FlowCanvasDragOver" Drop="FlowCanvasDrop"/>
             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="10" Padding="7" Margin="12">
               <StackPanel Orientation="Horizontal"><TextBox x:Name="CanvasSearch" Style="{StaticResource SearchField}" Width="145" Height="30" TextChanged="CanvasSearchChanged" ToolTip="Find node"/><Button Click="CanvasZoomOut" Padding="8,5" Margin="6,0,0,0">−</Button><TextBlock x:Name="CanvasZoomText" Text="100%" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="7,0"/><Button Click="CanvasZoomIn" Padding="8,5">+</Button><Button Click="FitWorkflow" Padding="8,5" Margin="6,0,0,0">⌖</Button></StackPanel>
             </Border>
@@ -787,10 +796,10 @@
         </Grid>
       </Grid>
     </Grid>
-    <Border x:Name="RecordingHud" Panel.ZIndex="50" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0" Background="#E9101925" BorderBrush="#7A2739" BorderThickness="1" CornerRadius="14" Padding="12,8">
+    <Border x:Name="RecordingHud" Panel.ZIndex="50" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,18,0,0" Background="#F0101925" BorderBrush="#EF4053" BorderThickness="1" CornerRadius="14" Padding="14,10">
       <StackPanel Orientation="Horizontal">
         <Ellipse Width="9" Height="9" Fill="#EF3348" Margin="0,0,8,0" VerticalAlignment="Center"/>
-        <TextBlock Text="Recording" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <TextBlock x:Name="RecordingHudLabel" Text="Starting recording" FontWeight="SemiBold" VerticalAlignment="Center"/>
         <TextBlock x:Name="RecordingHudTimer" Text="00:00" Foreground="#FF8391" FontFamily="Consolas" FontWeight="Bold" Margin="12,0,12,0" VerticalAlignment="Center"/>
         <Button Click="HudStopRecording" Padding="8,4" Background="#5A2431" BorderBrush="#824052">Stop</Button>
       </StackPanel>
