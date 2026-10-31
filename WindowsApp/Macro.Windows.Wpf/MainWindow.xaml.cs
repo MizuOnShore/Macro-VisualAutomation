@@ -202,10 +202,15 @@ public partial class MainWindow : Window
         var node = SelectedAutomation?.Nodes.FirstOrDefault(n => n.Kind == AutomationNodeKind.Start);
         if (node is null) return false;
         var items = CreateNodeContextMenu(node).Items.OfType<MenuItem>().ToList();
+        var macroItems = CreateNodeContextMenu(new AutomationNode { Kind = AutomationNodeKind.Macro }).Items.OfType<MenuItem>().ToList();
         return items.Any(item => Equals(item.Header, "Duplicate"))
             && items.Any(item => Equals(item.Header, "Rename…"))
             && items.Any(item => Equals(item.Header, "Disable"))
-            && items.Any(item => Equals(item.Header, "Delete") && !item.IsEnabled);
+            && items.Any(item => Equals(item.Header, "Delete") && !item.IsEnabled)
+            && macroItems.Any(item => Equals(item.Header, "Run Node"))
+            && macroItems.Any(item => Equals(item.Header, "Run From Here"))
+            && macroItems.Any(item => Equals(item.Header, "Test Node"))
+            && macroItems.Any(item => Equals(item.Header, "Delete") && item.IsEnabled);
     }
     internal void ShowSecondaryStateForCapture(string state)
     {
@@ -1220,6 +1225,12 @@ public partial class MainWindow : Window
         if (SelectedAutomation is not { } automation || selectedNode is null || selectedNode.Kind == AutomationNodeKind.Start) return;
         automation.Nodes.Remove(selectedNode);
         automation.Connections.RemoveAll(link => link.SourceNodeID == selectedNode.Id || link.TargetNodeID == selectedNode.Id);
+        foreach (var node in automation.Nodes)
+        {
+            if (node.RepeatTargetNodeID == selectedNode.Id) node.RepeatTargetNodeID = null;
+            if (node.JumpTargetNodeID == selectedNode.Id) node.JumpTargetNodeID = null;
+        }
+        automation.LastEdited = CocoaNow();
         SelectNode(null);
         RefreshAutomationDetail();
         SaveAll();

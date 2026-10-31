@@ -109,6 +109,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     }
     private void DrawNode(DrawingContext dc, AutomationNode node)
     {
+        dc.PushOpacity(node.IsEnabled ? 1 : .45);
         var r = Rect(node); var selected = node.Id == selectedNodeId; var active = node.Id == activeNodeId;
         var accent = KindColor(node.Kind);
         var baseColor = node.Kind switch { AutomationNodeKind.Start => C("102E29"), AutomationNodeKind.Stop => C("29202D"), AutomationNodeKind.RepeatFlow => C("1D2943"), _ => C("102B40") };
@@ -127,6 +128,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
         else if (node.Kind is not AutomationNodeKind.Stop and not AutomationNodeKind.Note)
             dc.DrawEllipse(new SolidColorBrush(accent), null, OutputPoint(node, null), 5 / zoom, 5 / zoom);
         if (node.Kind != AutomationNodeKind.Start) dc.DrawEllipse(new SolidColorBrush(C("6F8498")), null, new Point(r.X + NodeWidth / 2, r.Top), 4 / zoom, 4 / zoom);
+        dc.Pop();
     }
     private void DrawConnectionPreview(DrawingContext dc)
     {
