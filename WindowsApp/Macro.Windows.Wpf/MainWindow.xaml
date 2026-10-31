@@ -79,6 +79,10 @@
       <Setter Property="SelectionBrush" Value="#317FD1"/>
       <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     </Style>
+    <Style x:Key="SearchField" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="Height" Value="32"/><Setter Property="Padding" Value="28,5,10,5"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="SearchBorder" Background="#102A40" BorderBrush="#285574" BorderThickness="1" CornerRadius="9"><Grid><TextBlock Text="⌕" Foreground="#708AA1" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,1"/><ScrollViewer x:Name="PART_ContentHost" Margin="27,0,8,0" VerticalAlignment="Center"/></Grid></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="SearchBorder" Property="BorderBrush" Value="#1785FF"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="ComboBox">
       <Setter Property="Background" Value="#153753"/>
       <Setter Property="Foreground" Value="#F5F8FA"/>
@@ -308,7 +312,7 @@
                 </Border>
                 <Button DockPanel.Dock="Right" Tag="Recorder" Click="Navigate" Padding="8,4" Margin="0,0,7,0">Record</Button>
               </DockPanel>
-              <TextBox x:Name="MacroSearch" Grid.Row="1" TextChanged="MacroSearchChanged" Margin="0,0,0,12" ToolTip="Search macros"/>
+              <TextBox x:Name="MacroSearch" Style="{StaticResource SearchField}" Grid.Row="1" TextChanged="MacroSearchChanged" Margin="0,0,0,12" ToolTip="Search macros"/>
               <ListBox x:Name="MacroList" Grid.Row="2" SelectionChanged="MacroSelected">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
@@ -547,7 +551,7 @@
                 <TextBlock Text="AVAILABLE WINDOWS" Style="{StaticResource Section}"/>
                 <Button DockPanel.Dock="Right" Click="RefreshTargets" Padding="10,5">&#x21BB; Refresh</Button>
               </DockPanel>
-              <TextBox x:Name="TargetSearch" Grid.Row="1" Margin="0,0,0,10" TextChanged="TargetSearchChanged" ToolTip="Search windows"/>
+              <TextBox x:Name="TargetSearch" Style="{StaticResource SearchField}" Grid.Row="1" Margin="0,0,0,10" TextChanged="TargetSearchChanged" ToolTip="Search windows"/>
               <Grid Grid.Row="2">
               <ListBox x:Name="TargetList" SelectionChanged="TargetSelectionChanged">
                 <ListBox.ItemTemplate>
@@ -602,7 +606,7 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
-              <TextBlock Text="WORKFLOWS" Style="{StaticResource Section}"/>
+              <StackPanel Grid.Row="0"><TextBlock Text="WORKFLOWS" Style="{StaticResource Section}"/><TextBox x:Name="AutomationSearch" Style="{StaticResource SearchField}" TextChanged="AutomationSearchChanged" ToolTip="Search automations and nodes"/></StackPanel>
               <ListBox x:Name="AutomationList" Grid.Row="1" SelectionChanged="AutomationSelected">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
@@ -683,7 +687,7 @@
               <TextBlock Text="Logs" FontSize="30" FontWeight="Bold"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
-              <TextBox x:Name="LogSearch" Width="180" Margin="0,0,8,0" TextChanged="LogSearchChanged" ToolTip="Search logs"/>
+              <TextBox x:Name="LogSearch" Style="{StaticResource SearchField}" Width="180" Margin="0,0,8,0" TextChanged="LogSearchChanged" ToolTip="Search logs"/>
               <Button Click="ClearLogs">Clear</Button>
             </StackPanel>
           </DockPanel>

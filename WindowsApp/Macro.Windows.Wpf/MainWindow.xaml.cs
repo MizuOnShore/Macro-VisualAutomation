@@ -126,12 +126,14 @@ public partial class MainWindow : Window
         LogsPage.Visibility = page == "Logs" ? Visibility.Visible : Visibility.Collapsed;
         AutomationPage.Visibility = page == "Automation" ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
-        HeaderTitle.Text = page;
+        HeaderTitle.Text = page == "Automation" ? SelectedAutomation?.Name ?? "Automation" : page;
         HeaderIcon.Text = page switch
         {
             "Recorder" => "●", "Target" => "◎", "Logs" => "≡",
             "Automation" => "◇", "Settings" => "⚙", _ => "⌘"
         };
+        PlayButton.Content = page == "Automation" ? "▶  Run" : "▶  Play";
+        PlayButton.ToolTip = page == "Automation" ? "Run selected workflow" : "Play selected macro";
         foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
         {
             var selected = string.Equals(button.Tag?.ToString(), page, StringComparison.Ordinal);
@@ -176,7 +178,15 @@ public partial class MainWindow : Window
         try { DragMove(); } catch (InvalidOperationException) { }
     }
 
-    private async void PlayClicked(object sender, RoutedEventArgs e) => await PlaySelected();
+    private async void PlayClicked(object sender, RoutedEventArgs e)
+    {
+        if (AutomationPage.Visibility == Visibility.Visible)
+        {
+            RunAutomation(sender, e);
+            return;
+        }
+        await PlaySelected();
+    }
     private void PauseClicked(object sender, RoutedEventArgs e)
     {
         if (automationRunner.State != RunState.Idle) automationRunner.TogglePause();
@@ -689,7 +699,9 @@ public partial class MainWindow : Window
     private void BuildNodeLibrary()
     {
         NodeLibrary.Children.Clear();
-        foreach (var kind in Enum.GetValues<AutomationNodeKind>().Where(kind => kind != AutomationNodeKind.Start))
+        var query = AutomationSearch?.Text?.Trim() ?? "";
+        foreach (var kind in Enum.GetValues<AutomationNodeKind>().Where(kind => kind != AutomationNodeKind.Start)
+            .Where(kind => string.IsNullOrWhiteSpace(query) || NodeTitle(kind).Contains(query, StringComparison.CurrentCultureIgnoreCase)))
         {
             var button = new Button
             {
@@ -703,18 +715,38 @@ public partial class MainWindow : Window
 
     private void AutomationSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (!loading) LoadSelectedAutomation();
+        if (!loading)
+        {
+            LoadSelectedAutomation();
+            if (AutomationPage.Visibility == Visibility.Visible) HeaderTitle.Text = SelectedAutomation?.Name ?? "Automation";
+        }
+    }
+
+    private void AutomationSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        RefreshAutomationList(SelectedAutomation);
+        BuildNodeLibrary();
     }
 
     private void RefreshAutomations(AutomationDefinition? select = null)
     {
         loading = true;
-        AutomationList.ItemsSource = null;
-        AutomationList.ItemsSource = automations;
-        if (select is not null) AutomationList.SelectedItem = select;
-        else if (AutomationList.Items.Count > 0) AutomationList.SelectedIndex = 0;
+        RefreshAutomationList(select);
+        if (select is null && AutomationList.Items.Count > 0) AutomationList.SelectedIndex = 0;
         loading = false;
         LoadSelectedAutomation();
+    }
+
+    private void RefreshAutomationList(AutomationDefinition? select)
+    {
+        var query = AutomationSearch?.Text?.Trim() ?? "";
+        var visible = string.IsNullOrWhiteSpace(query)
+            ? automations
+            : automations.Where(automation => automation.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                || automation.AutomationDescription.Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        AutomationList.ItemsSource = null;
+        AutomationList.ItemsSource = visible;
+        if (select is not null && visible.Contains(select)) AutomationList.SelectedItem = select;
     }
 
     private void LoadSelectedAutomation()
