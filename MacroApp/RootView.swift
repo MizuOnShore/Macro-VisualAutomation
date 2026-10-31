@@ -5,7 +5,7 @@ struct RootView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView {
             VStack(spacing: 0) {
                 brandHeader
                 Divider().opacity(0.55)
@@ -16,16 +16,14 @@ struct RootView: View {
                         .padding(.vertical, 4)
                         .tag(destination)
                 }
-                .listStyle(.plain)
+                .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
 
                 sidebarStatus
             }
-            .frame(width: 220)
             .background(MacroTheme.sidebar)
-
-            Divider().opacity(0.6)
-
+            .navigationSplitViewColumnWidth(min: 155, ideal: 190, max: 230)
+        } detail: {
             VStack(spacing: 0) {
                 if model.destination != .automation {
                     appHeader
@@ -45,10 +43,8 @@ struct RootView: View {
                 .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
                 .background(MacroTheme.window)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MacroTheme.window)
+        .navigationSplitViewStyle(.balanced)
         .toolbarBackground(MacroTheme.toolbar, for: .windowToolbar)
         .tint(MacroTheme.accent)
         .preferredColorScheme(.dark)
