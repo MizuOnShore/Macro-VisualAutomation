@@ -1,0 +1,33 @@
+name: Windows verification
+
+on:
+  push:
+    paths:
+      - "WindowsApp/**"
+      - ".github/workflows/windows-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Run engine regression tests
+        run: dotnet run --project WindowsApp/Macro.Tests/Macro.Tests.csproj -c Release
+      - name: Publish self-contained WPF application
+        run: dotnet publish WindowsApp/Macro.Windows.Wpf/Macro.Windows.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o WindowsApp/artifacts/ci-win-x64
+      - name: Start and validate the Windows UI
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "WindowsApp/artifacts/ci-win-x64/Macro.exe" -ArgumentList "--smoke-test" -PassThru
+          if (-not $process.WaitForExit(30000)) {
+            $process.Kill()
+            throw "Macro did not complete its UI smoke test within 30 seconds."
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "Macro UI smoke test failed with exit code $($process.ExitCode)."
+          }

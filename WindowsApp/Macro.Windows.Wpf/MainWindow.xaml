@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Macro.Windows" x:Class="Macro.Windows.MainWindow" Title="Macro &#x2014; Automation Studio" Width="1420" Height="880" MinWidth="1080" MinHeight="680" WindowStartupLocation="CenterScreen" Background="#07121D" Foreground="#F4F7FA" FontFamily="Segoe UI" FontSize="14">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Macro.Windows" x:Class="Macro.Windows.MainWindow" Title="Macro &#x2014; Automation Studio" Width="1240" Height="760" MinWidth="920" MinHeight="600" WindowStartupLocation="Manual" WindowStyle="SingleBorderWindow" ResizeMode="CanResize" UseLayoutRounding="True" SnapsToDevicePixels="True" Background="#07121D" Foreground="#F4F7FA" FontFamily="Segoe UI" FontSize="14">
   <Window.Icon>
     <DrawingImage>
       <DrawingImage.Drawing>
@@ -30,6 +30,7 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="13,8"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -75,12 +76,51 @@
       <Setter Property="BorderBrush" Value="#285574"/>
       <Setter Property="Padding" Value="10,7"/>
       <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="SelectionBrush" Value="#317FD1"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     </Style>
     <Style TargetType="ComboBox">
       <Setter Property="Background" Value="#153753"/>
       <Setter Property="Foreground" Value="#F5F8FA"/>
       <Setter Property="BorderBrush" Value="#285574"/>
       <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <Border x:Name="ComboBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7"/>
+              <ToggleButton Focusable="False" ClickMode="Press" Background="Transparent" BorderThickness="0" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                <Grid><Path Data="M 0 0 L 4 4 L 8 0" Stroke="#9DB2C5" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,11,0"/></Grid>
+              </ToggleButton>
+              <ContentPresenter Margin="10,0,32,0" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+              <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade" Focusable="False">
+                <Border Background="#102A40" BorderBrush="#2A5A7C" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                  <ScrollViewer MaxHeight="260" Margin="4" CanContentScroll="True"><ItemsPresenter/></ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ComboBorder" Property="BorderBrush" Value="#3B78A3"/></Trigger>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ComboBorder" Property="BorderBrush" Value="#1785FF"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ComboBorder" Property="Opacity" Value=".45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="#F5F8FA"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="9,7"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Border x:Name="ItemBorder" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#1B4565"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#164D7D"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="#DDE7F0"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox"><StackPanel Orientation="Horizontal"><Border x:Name="Box" Width="18" Height="18" Background="#102C43" BorderBrush="#39627F" BorderThickness="1" CornerRadius="4"><Path x:Name="Check" Data="M 3 8 L 7 12 L 15 4" Stroke="White" StrokeThickness="2" Visibility="Collapsed"/></Border><ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Box" Property="Background" Value="#1785FF"/><Setter TargetName="Box" Property="BorderBrush" Value="#4AA1FF"/><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="#70B7FF"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value=".4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="10"/><Setter Property="Background" Value="Transparent"/><Setter Property="Margin" Value="2,0,0,0"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="Transparent"><Track x:Name="PART_Track" IsDirectionReversed="True"><Track.DecreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Opacity="0" Focusable="False"/></Track.DecreaseRepeatButton><Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border x:Name="ThumbBody" Background="#31536C" CornerRadius="5" Margin="2,0"/><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBody" Property="Background" Value="#477594"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb></Track.Thumb><Track.IncreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Opacity="0" Focusable="False"/></Track.IncreaseRepeatButton></Track></Grid></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="ListBox">
       <Setter Property="Background" Value="Transparent"/>
@@ -129,67 +169,67 @@
   </Window.Resources>
   <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="214"/>
+      <ColumnDefinition x:Name="SidebarColumn" Width="190"/>
       <ColumnDefinition Width="*"/>
     </Grid.ColumnDefinitions>
     <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="#17364E" BorderThickness="0,0,1,0">
       <Grid>
         <Grid.RowDefinitions>
-          <RowDefinition Height="82"/>
+          <RowDefinition Height="72"/>
           <RowDefinition Height="*"/>
-          <RowDefinition Height="132"/>
+          <RowDefinition Height="112"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Margin="16,16,10,12">
-          <Border Width="42" Height="42" CornerRadius="13" Background="#E7334A">
+        <StackPanel Orientation="Horizontal" Margin="14,13,8,10">
+          <Border Width="38" Height="38" CornerRadius="11" Background="#E7334A">
             <Grid>
               <Ellipse Width="20" Height="20" Stroke="White" StrokeThickness="3"/>
               <Ellipse Width="6" Height="6" Fill="White"/>
             </Grid>
           </Border>
-          <StackPanel Margin="11,2,0,0">
-            <TextBlock Text="Macro" FontSize="20" FontWeight="Bold"/>
+          <StackPanel Margin="10,1,0,0">
+            <TextBlock Text="Macro" FontSize="19" FontWeight="Bold"/>
             <TextBlock Text="Automation studio" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Row="1" Margin="0,12">
-          <Button Style="{StaticResource NavButton}" Tag="Macros" Click="Navigate">
+          <Button x:Name="NavMacros" Style="{StaticResource NavButton}" Tag="Macros" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x2318;" FontSize="18" Width="32"/>
               <TextBlock Text="Macros" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource NavButton}" Tag="Recorder" Click="Navigate">
+          <Button x:Name="NavRecorder" Style="{StaticResource NavButton}" Tag="Recorder" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x25CF;" Foreground="#EF4053" FontSize="16" Width="32"/>
               <TextBlock Text="Recorder" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource NavButton}" Tag="Target" Click="Navigate">
+          <Button x:Name="NavTarget" Style="{StaticResource NavButton}" Tag="Target" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x25CE;" Foreground="#43BDE0" FontSize="18" Width="32"/>
               <TextBlock Text="Target" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource NavButton}" Tag="Logs" Click="Navigate">
+          <Button x:Name="NavLogs" Style="{StaticResource NavButton}" Tag="Logs" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x2261;" FontSize="20" Width="32"/>
               <TextBlock Text="Logs" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource NavButton}" Tag="Automation" Click="Navigate">
+          <Button x:Name="NavAutomation" Style="{StaticResource NavButton}" Tag="Automation" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x25C7;" Foreground="#A774FF" FontSize="18" Width="32"/>
               <TextBlock Text="Automation" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Style="{StaticResource NavButton}" Tag="Settings" Click="Navigate">
+          <Button x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="Settings" Click="Navigate">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#x2699;" FontSize="17" Width="32"/>
               <TextBlock Text="Settings" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
-        <Border Grid.Row="2" BorderBrush="#17364E" BorderThickness="0,1,0,0" Padding="14">
+        <Border Grid.Row="2" BorderBrush="#17364E" BorderThickness="0,1,0,0" Padding="12">
           <StackPanel>
             <StackPanel Orientation="Horizontal">
               <Border Width="34" Height="34" CornerRadius="10" Background="#12324B">
@@ -217,10 +257,10 @@
     </Border>
     <Grid Grid.Column="1">
       <Grid.RowDefinitions>
-        <RowDefinition Height="64"/>
+        <RowDefinition Height="58"/>
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
-      <Border Background="{StaticResource ToolbarBrush}" BorderBrush="#17364E" BorderThickness="0,0,0,1">
+      <Border Background="{StaticResource ToolbarBrush}" BorderBrush="#17364E" BorderThickness="0,0,0,1" MouseLeftButtonDown="DragWindow">
         <Grid Margin="18,0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -249,9 +289,9 @@
         <!-- MACROS -->
         <Grid x:Name="MacrosPage">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="270"/>
+            <ColumnDefinition x:Name="MacroLibraryColumn" Width="235"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="330"/>
+            <ColumnDefinition x:Name="MacroInspectorColumn" Width="285"/>
           </Grid.ColumnDefinitions>
           <Border Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="14">
             <Grid>
@@ -290,14 +330,14 @@
               <StackPanel Grid.Row="3">
                 <Button Style="{StaticResource PrimaryButton}" Click="NewMacro" Margin="0,10,0,7">&#xFF0B;  New Macro</Button>
                 <UniformGrid Columns="3">
-                  <Button Click="DuplicateMacro" Margin="0,0,5,0">Duplicate</Button>
-                  <Button Click="ImportMacro" Margin="0,0,5,0">Import</Button>
-                  <Button Click="ExportMacro">Export</Button>
+                  <Button Click="DuplicateMacro" Margin="0,0,5,0" Padding="6,8" ToolTip="Duplicate selected macro">Copy</Button>
+                  <Button Click="ImportMacro" Margin="0,0,5,0" Padding="6,8">Import</Button>
+                  <Button Click="ExportMacro" Padding="6,8">Export</Button>
                 </UniformGrid>
               </StackPanel>
             </Grid>
           </Border>
-          <Grid Grid.Column="1" Margin="22">
+          <Grid Grid.Column="1" Margin="16">
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto"/>
               <RowDefinition Height="Auto"/>
@@ -308,27 +348,31 @@
               <TextBlock Text="SEQUENCE" Style="{StaticResource Section}"/>
               <TextBox x:Name="MacroName" FontSize="26" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0,2" TextChanged="MacroNameChanged"/>
             </StackPanel>
-            <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,16,0,16">
+            <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,12,0,12" Padding="14">
               <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel>
                   <TextBlock Text="Playback" FontWeight="SemiBold"/>
                   <TextBlock Text="Configure repeats and mouse behavior" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
                 </StackPanel>
-                <ComboBox x:Name="LoopModeBox" Grid.Column="1" Width="125" Margin="12,0,8,0" SelectionChanged="MacroOptionChanged"/>
-                <TextBox x:Name="LoopCountBox" Grid.Column="2" Width="54" Margin="0,0,8,0" TextChanged="MacroOptionChanged"/>
-                <ComboBox x:Name="PlaybackModeBox" Grid.Column="3" Width="138" SelectionChanged="MacroOptionChanged"/>
+                <Grid Grid.Row="1" Margin="0,11,0,0">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="62"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <ComboBox x:Name="LoopModeBox" Margin="0,0,7,0" SelectionChanged="MacroOptionChanged"/>
+                  <TextBox x:Name="LoopCountBox" Grid.Column="1" Margin="0,0,7,0" TextChanged="MacroOptionChanged" VerticalContentAlignment="Center"/>
+                  <ComboBox x:Name="PlaybackModeBox" Grid.Column="2" SelectionChanged="MacroOptionChanged"/>
+                </Grid>
               </Grid>
             </Border>
             <ListBox x:Name="ActionList" Grid.Row="2" SelectionChanged="ActionSelected">
+              <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="0"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="ActionRow" BorderBrush="Transparent" BorderThickness="1" CornerRadius="12"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ActionRow" Property="BorderBrush" Value="#2C5B7D"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="ActionRow" Property="BorderBrush" Value="#218BEE"/><Setter TargetName="ActionRow" Property="Background" Value="#0D2A43"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+                </Style>
+              </ListBox.ItemContainerStyle>
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Border Background="#0E273B" BorderBrush="#1E4563" BorderThickness="1" CornerRadius="12" Padding="13" Margin="0,0,0,8">
+                  <Border Background="#0E273B" BorderBrush="#1E4563" BorderThickness="1" CornerRadius="11" Padding="11">
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="44"/>
@@ -342,25 +386,22 @@
                         <TextBlock Text="{Binding Type}" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding}" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/>
                       </StackPanel>
-                          <CheckBox Grid.Column="2" IsChecked="{Binding IsEnabled}" Click="ActionEnabledChanged" VerticalAlignment="Center" ToolTip="Enable or disable this action"/>
+                      <CheckBox Grid.Column="2" IsChecked="{Binding IsEnabled}" Click="ActionEnabledChanged" VerticalAlignment="Center" ToolTip="Enable or disable this action"/>
                     </Grid>
                   </Border>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
-            <DockPanel Grid.Row="3" Margin="0,12,0,0">
-              <StackPanel Orientation="Horizontal">
-                <ComboBox x:Name="AddActionBox" Width="150"/>
-                <Button Style="{StaticResource PrimaryButton}" Click="AddAction" Margin="8,0,0,0">&#xFF0B; Add Action</Button>
-              </StackPanel>
-              <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                <Button Click="MoveActionUp" Width="38" Margin="0,0,6,0">&#x2191;</Button>
-                <Button Click="MoveActionDown" Width="38" Margin="0,0,6,0">&#x2193;</Button>
-                <Button Style="{StaticResource DangerButton}" Click="RemoveAction">Remove</Button>
-              </StackPanel>
-            </DockPanel>
+            <Grid Grid.Row="3" Margin="0,10,0,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <ComboBox x:Name="AddActionBox" MinWidth="105" Margin="0,0,7,0"/>
+              <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Click="AddAction" Padding="11,8" Margin="0,0,7,0">&#xFF0B; Add</Button>
+              <Button Grid.Column="2" Click="MoveActionUp" Width="38" Margin="0,0,6,0" ToolTip="Move action up">&#x2191;</Button>
+              <Button Grid.Column="3" Click="MoveActionDown" Width="38" Margin="0,0,6,0" ToolTip="Move action down">&#x2193;</Button>
+              <Button Grid.Column="4" Style="{StaticResource DangerButton}" Click="RemoveAction" Padding="10,8">Remove</Button>
+            </Grid>
           </Grid>
-          <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="18">
+          <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
               <StackPanel x:Name="ActionInspector">
                 <TextBlock Text="ACTION INSPECTOR" Style="{StaticResource Section}"/>
@@ -408,7 +449,7 @@
         </Grid>
         <!-- RECORDER -->
         <ScrollViewer x:Name="RecorderPage" Visibility="Collapsed">
-          <StackPanel Width="860" Margin="34">
+          <StackPanel MaxWidth="860" Margin="28" HorizontalAlignment="Stretch">
             <TextBlock Text="CAPTURE" Style="{StaticResource Section}"/>
             <TextBlock Text="Recorder" FontSize="34" FontWeight="Bold"/>
             <TextBlock Text="Keyboard, mouse clicks, pointer movement, and timing&#x2014;captured automatically." Foreground="{StaticResource SecondaryBrush}" FontSize="15" Margin="0,4,0,22"/>
@@ -452,13 +493,13 @@
             <TextBlock Text="GLOBAL CONTROLS" Style="{StaticResource Section}" Margin="0,16,0,8"/>
             <UniformGrid Columns="3">
               <Border Style="{StaticResource Card}" Margin="0,0,7,0">
-                <TextBlock Text="&#x25CF;  Record                                      F6"/>
+                <DockPanel><TextBlock Text="F6" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25CF;  Record"/></DockPanel>
               </Border>
               <Border Style="{StaticResource Card}" Margin="7,0">
-                <TextBlock Text="&#x25A0;  Stop                                         F7"/>
+                <DockPanel><TextBlock Text="F7" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25A0;  Stop"/></DockPanel>
               </Border>
               <Border Style="{StaticResource Card}" Margin="7,0,0,0">
-                <TextBlock Text="&#x25B6;  Play                                          F8"/>
+                <DockPanel><TextBlock Text="F8" DockPanel.Dock="Right" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Text="&#x25B6;  Play"/></DockPanel>
               </Border>
             </UniformGrid>
           </StackPanel>
@@ -466,7 +507,7 @@
         <!-- TARGET -->
         <Grid x:Name="TargetPage" Visibility="Collapsed">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="420"/>
+            <ColumnDefinition x:Name="TargetLibraryColumn" Width="350"/>
             <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
           <Border Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="16">
@@ -494,7 +535,7 @@
               <Button Grid.Row="2" Style="{StaticResource PrimaryButton}" Click="SelectTarget" Margin="0,12,0,0">Select Highlighted Window</Button>
             </Grid>
           </Border>
-          <StackPanel Grid.Column="1" Margin="28" Width="600" HorizontalAlignment="Left">
+          <StackPanel Grid.Column="1" Margin="28" MaxWidth="660" HorizontalAlignment="Stretch">
             <TextBlock Text="TARGET WINDOW" Style="{StaticResource Section}"/>
             <TextBlock x:Name="TargetTitle" Text="No target selected" FontSize="30" FontWeight="Bold"/>
             <TextBlock x:Name="TargetSubtitle" Text="Choose a visible application window to receive the macro." Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,20"/>
@@ -514,9 +555,9 @@
         <!-- AUTOMATION -->
         <Grid x:Name="AutomationPage" Visibility="Collapsed">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250"/>
+            <ColumnDefinition x:Name="AutomationLibraryColumn" Width="220"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition x:Name="AutomationInspectorColumn" Width="285"/>
           </Grid.ColumnDefinitions>
           <Border Background="#081827" BorderBrush="#17364E" BorderThickness="0,0,1,0" Padding="13">
             <Grid>
@@ -539,8 +580,8 @@
                 </ListBox.ItemTemplate>
               </ListBox>
               <TextBlock Grid.Row="2" Text="NODE LIBRARY" Style="{StaticResource Section}" Margin="0,12,0,8"/>
-              <ScrollViewer Grid.Row="3">
-                <WrapPanel x:Name="NodeLibrary"/>
+              <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="NodeLibrary"/>
               </ScrollViewer>
               <Button Grid.Row="4" Style="{StaticResource PrimaryButton}" Click="NewAutomation" Margin="0,10,0,0">&#xFF0B; New Workflow</Button>
             </Grid>
@@ -554,7 +595,7 @@
               </StackPanel>
             </Border>
           </Grid>
-          <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="17">
+          <Border Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
             <ScrollViewer>
               <StackPanel>
                 <TextBlock Text="INSPECTOR" Style="{StaticResource Section}"/>
@@ -579,14 +620,14 @@
                 <ComboBox x:Name="NodeBranch" Margin="0,0,0,8"/>
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                  <Button Click="ConnectNode" Margin="0,0,4,0">Connect Output</Button>
-                  <Button Grid.Column="1" Click="DisconnectNode" Margin="4,0,0,0">Disconnect</Button>
+                  <Button x:Name="ConnectButton" Click="ConnectNode" Margin="0,0,4,0" Padding="8">Connect</Button>
+                  <Button x:Name="DisconnectButton" Grid.Column="1" Click="DisconnectNode" Margin="4,0,0,0" Padding="8">Disconnect</Button>
                 </Grid>
                 <TextBlock Text="VALIDATION" Style="{StaticResource Section}" Margin="0,22,0,8"/>
                 <Border Style="{StaticResource Card}" Padding="12">
                   <TextBlock x:Name="ValidationText" Text="Select a workflow" Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
                 </Border>
-                <Button Style="{StaticResource DangerButton}" Click="DeleteNode" Margin="0,22,0,0">Delete Selected Node</Button>
+                <Button x:Name="DeleteNodeButton" Style="{StaticResource DangerButton}" Click="DeleteNode" Margin="0,22,0,0">Delete Selected Node</Button>
                 <Button Style="{StaticResource DangerButton}" Click="DeleteAutomation" Margin="0,8,0,0">Delete Workflow</Button>
               </StackPanel>
             </ScrollViewer>
@@ -609,7 +650,7 @@
         </Grid>
         <!-- SETTINGS -->
         <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed">
-          <StackPanel Width="760" Margin="34">
+          <StackPanel MaxWidth="760" Margin="28" HorizontalAlignment="Stretch">
             <TextBlock Text="PREFERENCES" Style="{StaticResource Section}"/>
             <TextBlock Text="Settings" FontSize="34" FontWeight="Bold"/>
             <TextBlock Text="Global controls and Windows input behavior" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,22"/>

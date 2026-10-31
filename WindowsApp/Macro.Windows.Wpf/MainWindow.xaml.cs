@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Macro.Core;
@@ -50,6 +51,11 @@ public partial class MainWindow : Window
         BuildNodeLibrary();
 
         FlowCanvas.NodeSelected += SelectNode;
+        FlowCanvas.ConnectionRequested += (source, target, branch) =>
+        {
+            SelectNode(source);
+            CreateConnection(source, target, branch);
+        };
         FlowCanvas.WorkflowChanged += SaveAll;
         macroRunner.Logged += (message, level) => Ui(() => Log(message, level));
         macroRunner.StateChanged += _ => Ui(UpdateState);
@@ -66,7 +72,12 @@ public partial class MainWindow : Window
             RecordTitle.Text = "Capturing input";
         });
 
-        SourceInitialized += (_, _) => RegisterHotkeys();
+        SourceInitialized += (_, _) =>
+        {
+            FitWindowToWorkArea();
+            RegisterHotkeys();
+        };
+        SizeChanged += (_, _) => AdaptLayout();
         Loaded += (_, _) =>
         {
             RefreshMacros();
@@ -106,8 +117,48 @@ public partial class MainWindow : Window
             "Recorder" => "●", "Target" => "◎", "Logs" => "≡",
             "Automation" => "◇", "Settings" => "⚙", _ => "⌘"
         };
+        foreach (var button in new[] { NavMacros, NavRecorder, NavTarget, NavLogs, NavAutomation, NavSettings })
+        {
+            var selected = string.Equals(button.Tag?.ToString(), page, StringComparison.Ordinal);
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#143955" : "#081827"));
+            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(selected ? "#245B82" : "#081827"));
+        }
         if (page == "Target") RefreshTargets();
         if (page == "Automation") FlowCanvas.Fit();
+    }
+
+    private void FitWindowToWorkArea()
+    {
+        var area = SystemParameters.WorkArea;
+        MinWidth = Math.Max(640, Math.Min(920, area.Width - 24));
+        MinHeight = Math.Max(480, Math.Min(600, area.Height - 24));
+        Width = Math.Max(MinWidth, Math.Min(1240, area.Width - 36));
+        Height = Math.Max(MinHeight, Math.Min(780, area.Height - 36));
+        Left = area.Left + Math.Max(0, (area.Width - Width) / 2);
+        Top = area.Top + Math.Max(0, (area.Height - Height) / 2);
+        AdaptLayout();
+    }
+
+    private void AdaptLayout()
+    {
+        var compact = ActualWidth > 0 && ActualWidth < 1120;
+        SidebarColumn.Width = new GridLength(compact ? 168 : 190);
+        MacroLibraryColumn.Width = new GridLength(compact ? 205 : 235);
+        MacroInspectorColumn.Width = new GridLength(compact ? 250 : 285);
+        TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
+        AutomationLibraryColumn.Width = new GridLength(compact ? 195 : 220);
+        AutomationInspectorColumn.Width = new GridLength(compact ? 250 : 285);
+    }
+
+    private void DragWindow(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        if (e.ClickCount == 2)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            return;
+        }
+        try { DragMove(); } catch (InvalidOperationException) { }
     }
 
     private async void PlayClicked(object sender, RoutedEventArgs e) => await PlaySelected();
@@ -561,7 +612,11 @@ public partial class MainWindow : Window
         NodeLibrary.Children.Clear();
         foreach (var kind in Enum.GetValues<AutomationNodeKind>().Where(kind => kind != AutomationNodeKind.Start))
         {
-            var button = new Button { Content = NodeTitle(kind), Tag = kind, Width = 104, Margin = new Thickness(0, 0, 7, 7), Padding = new Thickness(7) };
+            var button = new Button
+            {
+                Content = NodeTitle(kind), Tag = kind, Margin = new Thickness(0, 0, 0, 7), Padding = new Thickness(10, 7, 10, 7),
+                HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left
+            };
             button.Click += AddNode;
             NodeLibrary.Children.Add(button);
         }
@@ -652,6 +707,13 @@ public partial class MainWindow : Window
         MacroNodeFields.Visibility = node?.Kind == AutomationNodeKind.Macro ? Visibility.Visible : Visibility.Collapsed;
         WaitNodeFields.Visibility = node?.Kind == AutomationNodeKind.Wait ? Visibility.Visible : Visibility.Collapsed;
         RepeatNodeFields.Visibility = node?.Kind == AutomationNodeKind.RepeatFlow ? Visibility.Visible : Visibility.Collapsed;
+        var hasNode = node is not null;
+        NodeConnectTarget.IsEnabled = hasNode;
+        NodeBranch.IsEnabled = node?.Kind == AutomationNodeKind.IfElse;
+        NodeBranch.Visibility = node?.Kind == AutomationNodeKind.IfElse ? Visibility.Visible : Visibility.Collapsed;
+        ConnectButton.IsEnabled = hasNode;
+        DisconnectButton.IsEnabled = hasNode;
+        DeleteNodeButton.IsEnabled = node is not null && node.Kind != AutomationNodeKind.Start;
         BuildDynamicNodeFields(node);
         loading = false;
         RefreshAutomationDetail();
@@ -762,8 +824,16 @@ public partial class MainWindow : Window
             return;
         }
         if (selectedNode.Kind != AutomationNodeKind.IfElse) branch = null;
-        automation.Connections.RemoveAll(link => link.SourceNodeID == selectedNode.Id && link.Branch == branch);
-        automation.Connections.Add(new AutomationConnection { SourceNodeID = selectedNode.Id, TargetNodeID = target.Id, Branch = branch });
+        CreateConnection(selectedNode, target, branch);
+    }
+
+    private void CreateConnection(AutomationNode source, AutomationNode target, AutomationBranch? branch)
+    {
+        if (SelectedAutomation is not { } automation || source.Id == target.Id) return;
+        if (source.Kind == AutomationNodeKind.IfElse && branch is null) return;
+        if (source.Kind != AutomationNodeKind.IfElse) branch = null;
+        automation.Connections.RemoveAll(link => link.SourceNodeID == source.Id && link.Branch == branch);
+        automation.Connections.Add(new AutomationConnection { SourceNodeID = source.Id, TargetNodeID = target.Id, Branch = branch });
         automation.LastEdited = CocoaNow();
         RefreshAutomationDetail();
         SaveAll();
