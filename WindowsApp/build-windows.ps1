@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$project = Join-Path $root "Macro.Windows\Macro.Windows.csproj"
+$project = Join-Path $root "Macro.Windows.Wpf\Macro.Windows.Wpf.csproj"
 
 dotnet run --project (Join-Path $root "Macro.Tests\Macro.Tests.csproj") -c Release
 dotnet publish $project -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o (Join-Path $root "artifacts\win-x64")

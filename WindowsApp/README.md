@@ -1,6 +1,6 @@
 # Macro for Windows
 
-This is the native Windows port of Macro. It uses WinForms and the Windows API directly—there is no browser, Electron runtime, or separate background service.
+This is the native Windows port of Macro. It uses WPF and the Windows API directly—there is no browser, Electron runtime, or separate background service. Its dark sidebar, three-pane macro editor, recorder, target picker, and dotted workflow canvas closely follow the macOS edition.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ This is the native Windows port of Macro. It uses WinForms and the Windows API d
 
 ```powershell
 cd WindowsApp
-dotnet run --project .\Macro.Windows\Macro.Windows.csproj
+dotnet run --project .\Macro.Windows.Wpf\Macro.Windows.Wpf.csproj
 ```
 
 ## Build distributable `.exe` files

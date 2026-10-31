@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Macro</AssemblyName>
+    <RootNamespace>Macro.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Macro.Core\Macro.Core.csproj" />
+    <Compile Include="..\Macro.Windows\NativeMethods.cs" Link="Platform\NativeMethods.cs" />
+    <Compile Include="..\Macro.Windows\TargetService.cs" Link="Platform\TargetService.cs" />
+    <Compile Include="..\Macro.Windows\WindowsInputBackend.cs" Link="Platform\WindowsInputBackend.cs" />
+    <Compile Include="..\Macro.Windows\WindowsRecorder.cs" Link="Platform\WindowsRecorder.cs" />
+  </ItemGroup>
+</Project>

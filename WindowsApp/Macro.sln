@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macro.Core", "Macro.Core\Macro.Core.csproj", "{AD2366B4-496E-4EF0-82A8-4A8013FE7071}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macro.Windows", "Macro.Windows\Macro.Windows.csproj", "{A908019B-0E28-42F1-94F0-A7D566E58778}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macro.Windows.Wpf", "Macro.Windows.Wpf\Macro.Windows.Wpf.csproj", "{A908019B-0E28-42F1-94F0-A7D566E58778}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Macro.Tests", "Macro.Tests\Macro.Tests.csproj", "{2DA49A2E-DA5D-4E4C-B334-64281491E8F4}"
 EndProject

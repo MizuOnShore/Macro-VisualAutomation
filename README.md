@@ -3,7 +3,7 @@
 Macro now includes native editions for both platforms:
 
 - **macOS 14+** — the original SwiftUI application in `MacroApp`
-- **Windows 10/11** — the WinForms application in [`WindowsApp`](WindowsApp/README.md)
+- **Windows 10/11** — the native WPF application in [`WindowsApp`](WindowsApp/README.md), with a macOS-inspired interface and visual workflow canvas
 
 The editions share a compatible JSON macro format. Platform target identifiers differ: macOS stores bundle identifiers, while Windows stores process names in the same optional field.
 
