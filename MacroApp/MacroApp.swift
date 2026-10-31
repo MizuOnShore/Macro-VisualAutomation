@@ -12,6 +12,8 @@ struct MacroApp: App {
                 .frame(minWidth: 720, minHeight: 500)
         }
         .defaultSize(width: 1180, height: 760)
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandMenu("Macro") {
                 Button("Play Selected Macro") { appModel.start() }
