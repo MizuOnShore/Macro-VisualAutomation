@@ -1,0 +1,15 @@
+{
+  "id": "0F8D1463-36B7-4F02-91D8-71CBE49BF8D5",
+  "name": "Roblox Travel Loop",
+  "targetBundleIdentifier": "com.roblox.RobloxPlayer",
+  "actions": [
+    { "id": "9D2C42ED-F08E-43EB-A843-371613A86394", "type": "keyDown", "key": "w", "duration": 0.0, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true },
+    { "id": "25D378AA-2FC4-44FD-B78C-B32855C04690", "type": "wait", "duration": 10.0, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true },
+    { "id": "DDA8A3E0-B60B-4241-AFF9-8DE9C6DDE57E", "type": "keyUp", "key": "w", "duration": 0.0, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true },
+    { "id": "6037C589-1171-425D-9A5F-33D0A5760F3E", "type": "wait", "duration": 2.0, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true },
+    { "id": "1AA4B726-B7CC-466D-B2EF-3C3B58B706D3", "type": "keyPress", "key": "e", "duration": 0.1, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true },
+    { "id": "C5FEB7DD-1624-4CD0-87F5-24A2484218AA", "type": "wait", "duration": 3.0, "delay": 0.0, "usesWindowCoordinates": true, "isEnabled": true }
+  ],
+  "loopMode": "infinite",
+  "loopCount": 2
+}

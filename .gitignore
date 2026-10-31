@@ -1,0 +1,13 @@
+.DS_Store
+.dotnet/
+.dotnet-cli/
+.nuget/
+
+**/bin/
+**/obj/
+WindowsApp/artifacts/
+
+*.xcuserstate
+xcuserdata/
+DerivedData/
+

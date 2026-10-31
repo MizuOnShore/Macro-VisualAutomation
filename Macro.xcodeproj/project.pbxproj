@@ -1,0 +1,192 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000011 /* MacroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000001 /* MacroApp.swift */; };
+		A00000000000000000000012 /* MacroModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000002 /* MacroModels.swift */; };
+		A00000000000000000000013 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000003 /* AppModel.swift */; };
+		A00000000000000000000014 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000004 /* RootView.swift */; };
+		A00000000000000000000015 /* MacrosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000005 /* MacrosView.swift */; };
+		A00000000000000000000016 /* SecondaryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000006 /* SecondaryViews.swift */; };
+		A00000000000000000000017 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000007 /* Components.swift */; };
+		A00000000000000000000018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000008 /* Assets.xcassets */; };
+		A00000000000000000000019 /* TargetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000A /* TargetManager.swift */; };
+		A0000000000000000000001A /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000B /* PermissionManager.swift */; };
+		A0000000000000000000001B /* MacroStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000C /* MacroStorage.swift */; };
+		A0000000000000000000001C /* InputBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000D /* InputBackend.swift */; };
+		A0000000000000000000001D /* MacroEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000E /* MacroEngine.swift */; };
+		A0000000000000000000001E /* MacroRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000F /* MacroRecorder.swift */; };
+		A0000000000000000000001F /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000010 /* HotkeyManager.swift */; };
+		B00000000000000000000011 /* AutomationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* AutomationModels.swift */; };
+		B00000000000000000000012 /* AutomationStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* AutomationStorage.swift */; };
+		B00000000000000000000013 /* AutomationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* AutomationStore.swift */; };
+		B00000000000000000000014 /* AutomationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* AutomationEngine.swift */; };
+		B00000000000000000000015 /* AutomationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* AutomationView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000001 /* MacroApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000002 /* MacroModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroModels.swift; sourceTree = "<group>"; };
+		A00000000000000000000003 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A00000000000000000000004 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A00000000000000000000005 /* MacrosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacrosView.swift; sourceTree = "<group>"; };
+		A00000000000000000000006 /* SecondaryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondaryViews.swift; sourceTree = "<group>"; };
+		A00000000000000000000007 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		A00000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000009 /* Macro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Macro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0000000000000000000000A /* TargetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetManager.swift; sourceTree = "<group>"; };
+		A0000000000000000000000B /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		A0000000000000000000000C /* MacroStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroStorage.swift; sourceTree = "<group>"; };
+		A0000000000000000000000D /* InputBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputBackend.swift; sourceTree = "<group>"; };
+		A0000000000000000000000E /* MacroEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroEngine.swift; sourceTree = "<group>"; };
+		A0000000000000000000000F /* MacroRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroRecorder.swift; sourceTree = "<group>"; };
+		A00000000000000000000010 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		B00000000000000000000001 /* AutomationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationModels.swift; sourceTree = "<group>"; };
+		B00000000000000000000002 /* AutomationStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationStorage.swift; sourceTree = "<group>"; };
+		B00000000000000000000003 /* AutomationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationStore.swift; sourceTree = "<group>"; };
+		B00000000000000000000004 /* AutomationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationEngine.swift; sourceTree = "<group>"; };
+		B00000000000000000000005 /* AutomationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000020 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000030 = {
+			isa = PBXGroup;
+			children = (A00000000000000000000031 /* MacroApp */, A00000000000000000000032 /* Products */);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000031 /* MacroApp */ = {
+			isa = PBXGroup;
+			path = MacroApp;
+			sourceTree = "<group>";
+			children = (
+				A00000000000000000000001 /* MacroApp.swift */,
+				A00000000000000000000002 /* MacroModels.swift */,
+				A00000000000000000000003 /* AppModel.swift */,
+				A00000000000000000000004 /* RootView.swift */,
+				A00000000000000000000005 /* MacrosView.swift */,
+				A00000000000000000000006 /* SecondaryViews.swift */,
+				A00000000000000000000007 /* Components.swift */,
+				A00000000000000000000008 /* Assets.xcassets */,
+				A0000000000000000000000A /* TargetManager.swift */,
+				A0000000000000000000000B /* PermissionManager.swift */,
+				A0000000000000000000000C /* MacroStorage.swift */,
+				A0000000000000000000000D /* InputBackend.swift */,
+				A0000000000000000000000E /* MacroEngine.swift */,
+				A0000000000000000000000F /* MacroRecorder.swift */,
+				A00000000000000000000010 /* HotkeyManager.swift */,
+				B00000000000000000000001 /* AutomationModels.swift */,
+				B00000000000000000000002 /* AutomationStorage.swift */,
+				B00000000000000000000003 /* AutomationStore.swift */,
+				B00000000000000000000004 /* AutomationEngine.swift */,
+				B00000000000000000000005 /* AutomationView.swift */,
+			);
+		};
+		A00000000000000000000032 /* Products */ = {isa = PBXGroup; children = (A00000000000000000000009 /* Macro.app */); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000040 /* Macro */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000051 /* Build configuration list for PBXNativeTarget "Macro" */;
+			buildPhases = (A00000000000000000000021 /* Sources */, A00000000000000000000020 /* Frameworks */, A00000000000000000000022 /* Resources */);
+			buildRules = ();
+			dependencies = ();
+			name = Macro;
+			productName = Macro;
+			productReference = A00000000000000000000009 /* Macro.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000041 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {A00000000000000000000040 = {CreatedOnToolsVersion = 16.0; }; }; };
+			buildConfigurationList = A00000000000000000000050 /* Build configuration list for PBXProject "Macro" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A00000000000000000000030;
+			productRefGroup = A00000000000000000000032 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A00000000000000000000040 /* Macro */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000022 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000018 /* Assets.xcassets in Resources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000021 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000011, A00000000000000000000012, A00000000000000000000013, A00000000000000000000014, A00000000000000000000015, A00000000000000000000016, A00000000000000000000017, A00000000000000000000019, A0000000000000000000001A, A0000000000000000000001B, A0000000000000000000001C, A0000000000000000000001D, A0000000000000000000001E, A0000000000000000000001F, B00000000000000000000011, B00000000000000000000012, B00000000000000000000013, B00000000000000000000014, B00000000000000000000015); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000060 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_VERSION = 5.0; }; name = Debug; };
+		A00000000000000000000061 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Release; };
+		A00000000000000000000062 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Macro;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Macro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A00000000000000000000063 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Macro;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Macro;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000050 /* Build configuration list for PBXProject "Macro" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000060, A00000000000000000000061); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000051 /* Build configuration list for PBXNativeTarget "Macro" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000062, A00000000000000000000063); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000041 /* Project object */;
+}
