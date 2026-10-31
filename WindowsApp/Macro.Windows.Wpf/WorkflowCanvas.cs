@@ -16,6 +16,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private Point connectionPointer;
     private Point dragOrigin, panOrigin;
     private bool panning;
+    public bool PanToolActive { get; set; }
     private Vector pan = new(70, 50);
     private double zoom = 1;
     public event Action<AutomationNode?>? NodeSelected;
@@ -96,8 +97,10 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private void DrawNode(DrawingContext dc, AutomationNode node)
     {
         var r = Rect(node); var selected = node.Id == selectedNodeId; var active = node.Id == activeNodeId;
-        var accent = KindColor(node.Kind); var fill = new SolidColorBrush(active ? C("0D392A") : selected ? C("102B48") : C("0E2133"));
-        dc.DrawRoundedRectangle(fill, new Pen(new SolidColorBrush(active ? C("32D18B") : selected ? C("1785FF") : C("1E405C")), (selected || active ? 2 : 1) / zoom), r, 13, 13);
+        var accent = KindColor(node.Kind);
+        var baseColor = node.Kind switch { AutomationNodeKind.Start => C("102E29"), AutomationNodeKind.Stop => C("29202D"), AutomationNodeKind.RepeatFlow => C("1D2943"), _ => C("102B40") };
+        var fill = new SolidColorBrush(active ? C("0D392A") : selected ? C("173C59") : baseColor);
+        dc.DrawRoundedRectangle(fill, new Pen(new SolidColorBrush(active ? C("32D18B") : selected ? C("1785FF") : Color.FromArgb(62, accent.R, accent.G, accent.B)), (selected || active ? 2 : 1) / zoom), r, 13, 13);
         dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(35, accent.R, accent.G, accent.B)), null, new Rect(r.X + 12, r.Y + 14, 38, 38), 9, 9);
         Text(dc, Glyph(node.Kind), new(r.X + 22, r.Y + 23), 15, new SolidColorBrush(accent), semibold);
         var title = node.Kind == AutomationNodeKind.Macro ? MacroTitleResolver?.Invoke(node.MacroID) ?? node.Title : node.Title;
@@ -138,7 +141,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         Focus(); CaptureMouse(); var p = e.GetPosition(this);
-        if (e.ChangedButton is MouseButton.Middle or MouseButton.Right) { panning = true; panOrigin = p; e.Handled = true; return; }
+        if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || e.ChangedButton == MouseButton.Left && PanToolActive) { panning = true; panOrigin = p; e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Left || workflow is null) return;
         var logical = Logical(p);
         foreach (var candidate in workflow.Nodes.AsEnumerable().Reverse())
@@ -153,7 +156,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         var p = e.GetPosition(this);
-        if (panning && e.MiddleButton == MouseButtonState.Pressed || panning && e.RightButton == MouseButtonState.Pressed) { pan += p - panOrigin; panOrigin = p; InvalidateVisual(); return; }
+        if (panning && (e.MiddleButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed || PanToolActive && e.LeftButton == MouseButtonState.Pressed)) { pan += p - panOrigin; panOrigin = p; InvalidateVisual(); return; }
         if (connectingSource is not null && e.LeftButton == MouseButtonState.Pressed) { connectionPointer = Logical(p); InvalidateVisual(); return; }
         if (draggingNodeId is null || e.LeftButton != MouseButtonState.Pressed || workflow is null) return;
         var q = Logical(p); var node = workflow.Nodes.First(n => n.Id == draggingNodeId); node.Position.X = Math.Max(0, q.X - dragOrigin.X); node.Position.Y = Math.Max(0, q.Y - dragOrigin.Y); InvalidateVisual();

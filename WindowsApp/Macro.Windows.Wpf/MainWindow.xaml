@@ -96,11 +96,11 @@
           <ControlTemplate TargetType="ComboBox">
             <Grid>
               <Border x:Name="ComboBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7"/>
-              <ToggleButton Focusable="False" ClickMode="Press" Background="Transparent" BorderThickness="0" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                <Grid><Path Data="M 0 0 L 4 4 L 8 0" Stroke="#9DB2C5" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,11,0"/></Grid>
+              <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Grid Background="Transparent"><Path Data="M 0 0 L 4 4 L 8 0" Stroke="#9DB2C5" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,11,0"/></Grid></ControlTemplate></ToggleButton.Template>
               </ToggleButton>
               <ContentPresenter Margin="10,0,32,0" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-              <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade" Focusable="False">
+              <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade" Focusable="False">
                 <Border Background="#102A40" BorderBrush="#2A5A7C" BorderThickness="1" CornerRadius="8" Margin="0,4,0,0" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                   <ScrollViewer MaxHeight="260" Margin="4" CanContentScroll="True"><ItemsPresenter/></ScrollViewer>
                 </Border>
@@ -610,7 +610,7 @@
           <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#091A29" BorderBrush="#17364E" BorderThickness="0,0,0,1" Padding="10">
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <Button Click="ToggleAutomationLibrary" Padding="8,6" ToolTip="Automation library">☰</Button>
-              <Border Grid.Column="1" Width="30" Height="30" CornerRadius="8" Background="#133B63" Margin="8,0"><TextBlock Text="⌘" Foreground="#4C9CFF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+              <Border Grid.Column="1" Width="30" Height="30" CornerRadius="8" Background="#0C2A45" Margin="8,0"><TextBlock Text="◇" Foreground="#4C9CFF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
               <StackPanel Grid.Column="2" VerticalAlignment="Center"><TextBlock x:Name="AutomationToolbarTitle" Text="Automation" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="AutomationToolbarMeta" Text="0 nodes · 0 connections" Foreground="{StaticResource SecondaryBrush}" FontSize="10"/></StackPanel>
               <Button Grid.Column="3" Click="SaveAutomation" Padding="10,6" Margin="0,0,7,0">⇩  Save</Button>
               <Button Grid.Column="4" Style="{StaticResource PrimaryButton}" Click="RunAutomation" Padding="13,6" Margin="0,0,7,0">▶  Run</Button>
@@ -649,17 +649,21 @@
             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="10" Padding="7" Margin="12">
               <StackPanel Orientation="Horizontal"><TextBox x:Name="CanvasSearch" Style="{StaticResource SearchField}" Width="145" Height="30" TextChanged="CanvasSearchChanged" ToolTip="Find node"/><Button Click="CanvasZoomOut" Padding="8,5" Margin="6,0,0,0">−</Button><TextBlock x:Name="CanvasZoomText" Text="100%" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="7,0"/><Button Click="CanvasZoomIn" Padding="8,5">+</Button><Button Click="FitWorkflow" Padding="8,5" Margin="6,0,0,0">⌖</Button></StackPanel>
             </Border>
-            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="11" Padding="6" Margin="12"><StackPanel Orientation="Horizontal"><Button Padding="9,6" ToolTip="Select">↖</Button><Button Padding="9,6" ToolTip="Pan">☝</Button><Button Padding="9,6" ToolTip="Fit" Click="FitWorkflow">⌗</Button><Button Padding="9,6" ToolTip="Reset zoom" Click="CanvasResetZoom">↗</Button></StackPanel></Border>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="11" Padding="6" Margin="12"><StackPanel Orientation="Horizontal"><Button x:Name="CanvasSelectButton" Padding="9,6" ToolTip="Select and connect nodes" Click="CanvasSelectTool">↖</Button><Button x:Name="CanvasPanButton" Padding="9,6" ToolTip="Pan canvas" Click="CanvasPanTool">☝</Button><Button Padding="9,6" ToolTip="Fit" Click="FitWorkflow">⌗</Button><Button Padding="9,6" ToolTip="Reset zoom" Click="CanvasResetZoom">↗</Button></StackPanel></Border>
           </Grid>
           <Border x:Name="AutomationInspectorPanel" Grid.Row="1" Grid.Column="2" Background="#081827" BorderBrush="#17364E" BorderThickness="1,0,0,0" Padding="14">
             <ScrollViewer>
               <StackPanel>
-                <TextBlock Text="INSPECTOR" Style="{StaticResource Section}"/>
-                <TextBox x:Name="AutomationName" FontSize="20" FontWeight="Bold" Background="Transparent" BorderThickness="0" Padding="0" TextChanged="AutomationNameChanged" Margin="0,0,0,14"/>
-                <TextBlock Text="DESCRIPTION" Style="{StaticResource Section}"/>
+                <TextBlock Text="AUTOMATION SETTINGS" Style="{StaticResource Section}"/>
+                <TextBlock Text="Automation Name" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,6,0,5"/>
+                <TextBox x:Name="AutomationName" FontSize="13" FontWeight="SemiBold" TextChanged="AutomationNameChanged" Margin="0,0,0,12"/>
+                <TextBlock Text="Description" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,0,0,5"/>
                 <TextBox x:Name="AutomationDescription" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54" TextChanged="AutomationDescriptionChanged" Margin="0,0,0,12"/>
                 <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions><TextBlock Text="Start mode" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center"/><ComboBox x:Name="StartModeBox" Grid.Column="1" SelectionChanged="AutomationStartModeChanged"/></Grid>
-                <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,16"><StackPanel><TextBlock Text="WORKFLOW STATUS" Style="{StaticResource Section}"/><TextBlock x:Name="AutomationSummary" Text="0 nodes · 0 connections" FontWeight="SemiBold"/><TextBlock Text="Validation is updated as you edit the workflow." Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border>
+                <TextBlock Text="Status" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,0,0,5"/>
+                <Border Background="#16212D" CornerRadius="8" HorizontalAlignment="Left" Padding="9,5" Margin="0,0,0,8"><TextBlock Text="●  Automation Ready" FontSize="11"/></Border>
+                <TextBlock x:Name="AutomationSummary" Text="0 nodes · 0 connections" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,0,0,16"/>
+                <Border BorderBrush="#1F3348" BorderThickness="0,1,0,0" Margin="0,0,0,4"/>
                 <StackPanel x:Name="NodeEditorPanel">
                 <TextBlock x:Name="NodeInspectorTitle" Text="Select a node" FontSize="17" FontWeight="SemiBold"/>
                 <TextBlock x:Name="NodeKindText" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,14"/>
@@ -696,93 +700,90 @@
           </Border>
         </Grid>
         <!-- LOGS -->
-        <Grid x:Name="LogsPage" Visibility="Collapsed" Margin="24">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-          </Grid.RowDefinitions>
-          <DockPanel Margin="0,0,0,14">
-            <StackPanel>
-              <TextBlock Text="ACTIVITY" Style="{StaticResource Section}"/>
-              <TextBlock Text="Logs" FontSize="30" FontWeight="Bold"/>
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
-              <TextBox x:Name="LogSearch" Style="{StaticResource SearchField}" Width="180" Margin="0,0,8,0" TextChanged="LogSearchChanged" ToolTip="Search logs"/>
-              <Button Click="ClearLogs">Clear</Button>
-            </StackPanel>
-          </DockPanel>
-          <ListBox x:Name="LogList" Grid.Row="1" Background="Transparent" BorderThickness="0">
-            <ListBox.ItemContainerStyle>
-              <Style TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,7"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style>
-            </ListBox.ItemContainerStyle>
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <Border Style="{StaticResource Card}" Padding="12,10">
-                  <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="12"/><ColumnDefinition Width="74"/><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Ellipse Width="7" Height="7" Fill="{Binding Accent}" VerticalAlignment="Top" Margin="0,6,0,0"/>
-                    <TextBlock Grid.Column="1" Text="{Binding Time}" Foreground="{StaticResource SecondaryBrush}" FontFamily="Consolas" FontSize="11"/>
-                    <TextBlock Grid.Column="2" Text="{Binding Level}" Foreground="{Binding Accent}" FontWeight="SemiBold" FontSize="11"/>
-                    <StackPanel Grid.Column="3"><TextBlock Text="{Binding Message}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding Detail}" Foreground="{StaticResource SecondaryBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/></StackPanel>
+        <Grid x:Name="LogsPage" Visibility="Collapsed" Background="{StaticResource WindowBrush}">
+          <Grid.RowDefinitions><RowDefinition Height="46"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <Border Background="{StaticResource ToolbarBrush}" BorderBrush="#1F3348" BorderThickness="0,0,0,1">
+            <Grid Margin="14,0"><Grid.ColumnDefinitions><ColumnDefinition Width="88"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="TIME" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
+              <TextBlock Grid.Column="1" Text="LEVEL" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
+              <TextBlock Grid.Column="2" Text="MESSAGE" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
+              <TextBox x:Name="LogSearch" Grid.Column="3" Style="{StaticResource SearchField}" Width="170" Margin="0,0,8,0" VerticalAlignment="Center" TextChanged="LogSearchChanged" ToolTip="Search logs"/>
+              <Button Grid.Column="4" Click="ClearLogs" Foreground="#0E79FF" Background="Transparent" BorderBrush="Transparent" Padding="8,5" VerticalAlignment="Center">Clear</Button>
+            </Grid>
+          </Border>
+          <Grid Grid.Row="1">
+            <ListBox x:Name="LogList" Background="Transparent" BorderThickness="0">
+              <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter HorizontalAlignment="Stretch"/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+              <ListBox.ItemTemplate><DataTemplate>
+                <Border BorderBrush="#1F3348" BorderThickness="0,0,0,1" Padding="14,10">
+                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="88"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Time}" Foreground="{StaticResource SecondaryBrush}" FontFamily="Consolas" FontSize="11"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Level}" Foreground="{Binding Accent}" FontWeight="SemiBold" FontSize="11"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Message}" TextWrapping="Wrap" FontSize="13" ToolTip="{Binding Detail}"/>
                   </Grid>
                 </Border>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-          <StackPanel x:Name="LogEmptyState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
-            <TextBlock Text="No logs yet" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-            <TextBlock Text="Run a macro or automation to see activity here." Foreground="{StaticResource SecondaryBrush}" Margin="0,6,0,0"/>
-          </StackPanel>
+              </DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel x:Name="LogEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+              <TextBlock Text="≡" Foreground="#71859A" FontSize="28" HorizontalAlignment="Center"/>
+              <TextBlock Text="No Logs Yet" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+              <TextBlock Text="Activity and playback messages will appear here." Foreground="{StaticResource SecondaryBrush}" Margin="0,6,0,0"/>
+            </StackPanel>
+          </Grid>
         </Grid>
         <!-- SETTINGS -->
-        <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed">
-          <StackPanel MaxWidth="760" Margin="28" HorizontalAlignment="Stretch">
-            <TextBlock Text="PREFERENCES" Style="{StaticResource Section}"/>
-            <TextBlock Text="Settings" FontSize="34" FontWeight="Bold"/>
-            <TextBlock Text="Global controls and Windows input behavior" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,22"/>
-            <TextBlock Text="GENERAL" Style="{StaticResource Section}" Margin="0,0,0,8"/>
-            <Border Style="{StaticResource Card}">
-              <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Appearance" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Dark navy theme · follows the Macro design system" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0"/></StackPanel><Border Grid.Column="1" Background="#153753" CornerRadius="8" Padding="10,6"><TextBlock Text="Dark"/></Border></Grid>
-            </Border>
-            <TextBlock Text="RECORDING" Style="{StaticResource Section}" Margin="0,18,0,8"/>
-            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Global recording controls" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Keyboard and mouse hooks · 3-second countdown · F6 to record · F7 to stop" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/></StackPanel></Border>
-            <TextBlock Text="PLAYBACK" Style="{StaticResource Section}" Margin="0,18,0,8"/>
-            <Border Style="{StaticResource Card}">
-              <StackPanel>
-                <TextBlock Text="Global hotkeys" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="These shortcuts work while Macro is in the background." Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,14"/>
-                <UniformGrid Columns="3">
-                  <Border Background="#153753" CornerRadius="10" Padding="13" Margin="0,0,6,0">
-                    <TextBlock Text="&#x25CF; Record     F6"/>
-                  </Border>
-                  <Border Background="#153753" CornerRadius="10" Padding="13" Margin="6,0">
-                    <TextBlock Text="&#x25A0; Stop        F7"/>
-                  </Border>
-                  <Border Background="#153753" CornerRadius="10" Padding="13" Margin="6,0,0,0">
-                    <TextBlock Text="&#x25B6; Play        F8"/>
-                  </Border>
-                </UniformGrid>
-              </StackPanel>
-            </Border>
-            <TextBlock Text="TARGET" Style="{StaticResource Section}" Margin="0,18,0,8"/>
-            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Window matching" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Visible top-level windows · process-name matching · selected target stays visible in the sidebar" Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/></StackPanel></Border>
-            <TextBlock Text="PERMISSIONS &amp; SAFETY" Style="{StaticResource Section}" Margin="0,18,0,8"/>
-            <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Windows input permissions" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Macro uses standard Windows hooks, window messages, and SendInput. Run Macro at the same integrity level as elevated targets." Foreground="{StaticResource SecondaryBrush}" Margin="0,5,0,0" TextWrapping="Wrap"/><Border Background="#2B2415" BorderBrush="#6A5122" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,12,0,0"><TextBlock Text="Emergency stop: F7 · Stop always releases held inputs." Foreground="#F4C66A" TextWrapping="Wrap"/></Border></StackPanel></Border>
-            <Border Style="{StaticResource Card}" Margin="0,14,0,0">
-              <StackPanel>
-                <TextBlock Text="Playback modes" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="Background sends messages to the selected window without moving focus. Compatibility activates the target and uses Windows SendInput for applications that ignore background messages." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,7,0,0"/>
-              </StackPanel>
-            </Border>
-            <Border Style="{StaticResource Card}" Margin="0,14,0,0">
-              <StackPanel>
-                <TextBlock Text="Data folder" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock x:Name="DataFolderText" Foreground="{StaticResource SecondaryBrush}" Margin="0,7,0,12"/>
-                <Button Click="OpenDataFolder" HorizontalAlignment="Left">Open Data Folder</Button>
-              </StackPanel>
-            </Border>
-          </StackPanel>
-        </ScrollViewer>
+        <Grid x:Name="SettingsPage" Visibility="Collapsed" Background="{StaticResource PanelBrush}">
+          <Grid.RowDefinitions><RowDefinition Height="58"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <Border Background="{StaticResource ToolbarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Margin="12" VerticalAlignment="Center">
+              <Button x:Name="SettingsGeneralTab" Tag="General" Click="SwitchSettingsTab" Padding="13,7" Margin="0,0,6,0">⚙  General</Button>
+              <Button x:Name="SettingsHotkeysTab" Tag="Hotkeys" Click="SwitchSettingsTab" Padding="13,7" Margin="0,0,6,0">⌨  Hotkeys</Button>
+              <Button x:Name="SettingsPermissionsTab" Tag="Permissions" Click="SwitchSettingsTab" Padding="13,7">♧  Permissions</Button>
+            </StackPanel>
+          </Border>
+          <ScrollViewer x:Name="SettingsGeneralContent" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="16">
+              <TextBlock Text="General" FontSize="22" FontWeight="Bold"/>
+              <TextBlock Text="Safety and target-window behavior" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,16"/>
+              <Border Style="{StaticResource Card}" Margin="0,0,0,14"><StackPanel>
+                <TextBlock Text="◈  Safety" Foreground="#38C98A" FontSize="16" FontWeight="SemiBold"/>
+                <Grid Margin="0,14,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Emergency stop" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Grid.Column="1" Text="F7" FontWeight="SemiBold"/></Grid>
+                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,10"/>
+                <TextBlock Text="Stop, errors, target termination, and app termination release held automation keys and mouse buttons." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
+              </StackPanel></Border>
+              <Border Style="{StaticResource Card}" Margin="0,0,0,14"><StackPanel>
+                <TextBlock Text="▣  Window targeting" Foreground="#0E79FF" FontSize="16" FontWeight="SemiBold"/>
+                <Grid Margin="0,14,0,10"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Window discovery" Foreground="{StaticResource SecondaryBrush}"/><TextBlock Grid.Column="1" Text="Visible top-level windows" FontWeight="SemiBold"/></Grid>
+                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,10"/>
+                <TextBlock Text="Compatibility playback brings the target forward when an application ignores background messages." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
+              </StackPanel></Border>
+              <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="Data folder" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="DataFolderText" Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,12"/><Button Click="OpenDataFolder" HorizontalAlignment="Left">Open Data Folder</Button></StackPanel></Border>
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="SettingsHotkeysContent" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="16">
+              <TextBlock Text="Global Hotkeys" FontSize="22" FontWeight="Bold"/>
+              <TextBlock Text="These shortcuts work while Macro is in the background." Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,16"/>
+              <Border Style="{StaticResource Card}" Padding="0"><StackPanel>
+                <Grid Margin="14"><Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><TextBlock Text="●" Foreground="#F03553" FontSize="17" VerticalAlignment="Center"/><StackPanel Grid.Column="1"><TextBlock Text="Record" FontWeight="SemiBold"/><TextBlock Text="Begins recording into a new macro" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></StackPanel><Border Grid.Column="2" Background="{StaticResource RaisedBrush}" CornerRadius="7" Padding="8,5"><TextBlock Text="F6" HorizontalAlignment="Center"/></Border></Grid>
+                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="60,0,0,0"/>
+                <Grid Margin="14"><Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><TextBlock Text="■" Foreground="#F4A340" FontSize="17" VerticalAlignment="Center"/><StackPanel Grid.Column="1"><TextBlock Text="Stop" FontWeight="SemiBold"/><TextBlock Text="Ends recording or stops playback" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></StackPanel><Border Grid.Column="2" Background="{StaticResource RaisedBrush}" CornerRadius="7" Padding="8,5"><TextBlock Text="F7" HorizontalAlignment="Center"/></Border></Grid>
+                <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="60,0,0,0"/>
+                <Grid Margin="14"><Grid.ColumnDefinitions><ColumnDefinition Width="38"/><ColumnDefinition Width="*"/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><TextBlock Text="▶" Foreground="#38C98A" FontSize="17" VerticalAlignment="Center"/><StackPanel Grid.Column="1"><TextBlock Text="Play" FontWeight="SemiBold"/><TextBlock Text="Runs the selected macro" Foreground="{StaticResource SecondaryBrush}" FontSize="11"/></StackPanel><Border Grid.Column="2" Background="{StaticResource RaisedBrush}" CornerRadius="7" Padding="8,5"><TextBlock Text="F8" HorizontalAlignment="Center"/></Border></Grid>
+              </StackPanel></Border>
+              <TextBlock Text="Global hotkeys are active when Windows allows registration. These shortcuts are fixed in this build." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+            </StackPanel>
+          </ScrollViewer>
+          <ScrollViewer x:Name="SettingsPermissionsContent" Grid.Row="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="16">
+              <TextBlock Text="Permissions" FontSize="22" FontWeight="Bold"/>
+              <TextBlock Text="Windows input access and playback behavior" Foreground="{StaticResource SecondaryBrush}" Margin="0,4,0,16"/>
+              <Border Style="{StaticResource Card}" Margin="0,0,0,14"><StackPanel><TextBlock Text="⌨  Input monitoring" FontSize="16" FontWeight="SemiBold" Foreground="#0E79FF"/><TextBlock Text="Required for recording and global stop" Foreground="{StaticResource SecondaryBrush}" Margin="0,10,0,0"/><TextBlock Text="Macro uses Windows input hooks to capture keyboard and mouse actions. Windows may restrict hooks across elevated processes." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/></StackPanel></Border>
+              <Border Style="{StaticResource Card}" Margin="0,0,0,14"><StackPanel><TextBlock Text="◎  Playback access" FontSize="16" FontWeight="SemiBold" Foreground="#38C98A"/><TextBlock Text="Macro uses window messages for Background playback and SendInput for Compatibility playback. Elevated targets may require Macro to run at the same integrity level." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/></StackPanel></Border>
+              <TextBlock Text="Windows owns these access decisions. Use Compatibility playback when a target does not accept background input." Foreground="{StaticResource SecondaryBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
       </Grid>
     </Grid>
   </Grid>

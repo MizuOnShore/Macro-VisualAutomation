@@ -106,6 +106,7 @@ public partial class MainWindow : Window
             RefreshAutomations();
             RefreshTargets();
             DataFolderText.Text = storage.DirectoryPath;
+            ShowSettingsTab("General");
             NavigateTo("Macros");
             Log("Macro is ready. Select a target before playback.");
         };
@@ -133,7 +134,7 @@ public partial class MainWindow : Window
         LogsPage.Visibility = page == "Logs" ? Visibility.Visible : Visibility.Collapsed;
         AutomationPage.Visibility = page == "Automation" ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = page == "Settings" ? Visibility.Visible : Visibility.Collapsed;
-        HeaderTitle.Text = page == "Automation" ? SelectedAutomation?.Name ?? "Automation" : page;
+        HeaderTitle.Text = page == "Automation" ? "Macro" : page;
         HeaderIcon.Text = page switch
         {
             "Recorder" => "●", "Target" => "◎", "Logs" => "≡",
@@ -863,7 +864,7 @@ public partial class MainWindow : Window
         if (!loading)
         {
             LoadSelectedAutomation();
-            if (AutomationPage.Visibility == Visibility.Visible) HeaderTitle.Text = SelectedAutomation?.Name ?? "Automation";
+            if (AutomationPage.Visibility == Visibility.Visible) HeaderTitle.Text = "Macro";
         }
     }
 
@@ -905,8 +906,7 @@ public partial class MainWindow : Window
         FlowCanvas.Workflow = SelectedAutomation;
         selectedNode = null;
         loading = false;
-        RefreshAutomationDetail();
-        SelectNode(SelectedAutomation?.Nodes.FirstOrDefault(n => n.Kind == AutomationNodeKind.Start));
+        SelectNode(null);
     }
 
     private void RefreshAutomationDetail()
@@ -1157,6 +1157,15 @@ public partial class MainWindow : Window
     private void CanvasZoomOut(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(.85); UpdateCanvasZoom(); }
     private void CanvasZoomIn(object sender, RoutedEventArgs e) { FlowCanvas.ZoomBy(1.18); UpdateCanvasZoom(); }
     private void CanvasResetZoom(object sender, RoutedEventArgs e) { FlowCanvas.ResetZoom(); UpdateCanvasZoom(); }
+    private void CanvasSelectTool(object sender, RoutedEventArgs e) => SetCanvasTool(false);
+    private void CanvasPanTool(object sender, RoutedEventArgs e) => SetCanvasTool(true);
+    private void SetCanvasTool(bool pan)
+    {
+        FlowCanvas.PanToolActive = pan;
+        FlowCanvas.Cursor = pan ? Cursors.Hand : Cursors.Arrow;
+        CanvasSelectButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pan ? "#121F2D" : "#164A7D"));
+        CanvasPanButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pan ? "#164A7D" : "#121F2D"));
+    }
     private void UpdateCanvasZoom() => CanvasZoomText.Text = $"{FlowCanvas.Zoom * 100:0}%";
     private void CanvasSearchChanged(object sender, TextChangedEventArgs e)
     {
@@ -1275,6 +1284,24 @@ public partial class MainWindow : Window
         Process.Start(new ProcessStartInfo("explorer.exe", storage.DirectoryPath) { UseShellExecute = true });
     }
 
+    private void SwitchSettingsTab(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tab }) ShowSettingsTab(tab);
+    }
+
+    private void ShowSettingsTab(string tab)
+    {
+        SettingsGeneralContent.Visibility = tab == "General" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsHotkeysContent.Visibility = tab == "Hotkeys" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPermissionsContent.Visibility = tab == "Permissions" ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var button in new[] { SettingsGeneralTab, SettingsHotkeysTab, SettingsPermissionsTab })
+        {
+            var active = Equals(button.Tag, tab);
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#183A5B" : "#09111B"));
+            button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#376284" : "#1F3348"));
+        }
+    }
+
     private void SaveAll()
     {
         if (loading) return;
@@ -1296,7 +1323,7 @@ public partial class MainWindow : Window
         {
             "error" => ("Error", "#F06A79"),
             "warning" => ("Warning", "#F4A340"),
-            _ => ("System", "#4C9CFF")
+            _ => ("Info", "#8DA3B8")
         };
         logEntries.Add(new UiLogEntry
         {
