@@ -49,6 +49,7 @@ public partial class App : Application
                         window.ApplyCaptureLayout(width);
                         root.Measure(new Size(width, height));
                         root.Arrange(new Rect(0, 0, width, height));
+                        root.UpdateLayout();
                         window.FitCanvasForCapture();
                         visual = root;
                     }
