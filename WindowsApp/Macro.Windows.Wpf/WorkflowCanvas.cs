@@ -16,6 +16,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private Point connectionPointer;
     private Point dragOrigin, panOrigin;
     private bool panning;
+    private bool fitOnResize = true;
     public bool PanToolActive { get; set; }
     private Vector pan = new(70, 50);
     private double zoom = 1;
@@ -34,6 +35,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     public void Fit()
     {
+        fitOnResize = true;
         if (workflow is null || workflow.Nodes.Count == 0 || ActualWidth <= 0 || ActualHeight <= 0) { zoom = 1; pan = new(70, 50); return; }
         var minX = workflow.Nodes.Min(n => n.Position.X); var maxX = workflow.Nodes.Max(n => n.Position.X) + NodeWidth;
         var minY = workflow.Nodes.Min(n => n.Position.Y); var maxY = workflow.Nodes.Max(n => n.Position.Y) + NodeHeight;
@@ -44,6 +46,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     public void ZoomBy(double factor)
     {
+        fitOnResize = false;
         var center = new Point(ActualWidth / 2, ActualHeight / 2);
         var before = Logical(center);
         zoom = Math.Clamp(zoom * factor, .4, 1.8);
@@ -53,6 +56,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     public void ResetZoom()
     {
+        fitOnResize = false;
         zoom = 1;
         pan = new(70, 50);
         InvalidateVisual();
@@ -141,7 +145,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         Focus(); CaptureMouse(); var p = e.GetPosition(this);
-        if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || e.ChangedButton == MouseButton.Left && PanToolActive) { panning = true; panOrigin = p; e.Handled = true; return; }
+        if (e.ChangedButton is MouseButton.Middle or MouseButton.Right || e.ChangedButton == MouseButton.Left && PanToolActive) { fitOnResize = false; panning = true; panOrigin = p; e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Left || workflow is null) return;
         var logical = Logical(p);
         foreach (var candidate in workflow.Nodes.AsEnumerable().Reverse())
@@ -174,9 +178,9 @@ internal sealed class WorkflowCanvas : FrameworkElement
     }
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
-        var before = Logical(e.GetPosition(this)); zoom = Math.Clamp(zoom * (e.Delta > 0 ? 1.1 : .9), .4, 1.8); var p = e.GetPosition(this); pan = new(p.X - before.X * zoom, p.Y - before.Y * zoom); InvalidateVisual();
+        fitOnResize = false; var before = Logical(e.GetPosition(this)); zoom = Math.Clamp(zoom * (e.Delta > 0 ? 1.1 : .9), .4, 1.8); var p = e.GetPosition(this); pan = new(p.X - before.X * zoom, p.Y - before.Y * zoom); InvalidateVisual();
     }
-    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo) { base.OnRenderSizeChanged(sizeInfo); if (sizeInfo.PreviousSize.Width == 0) Fit(); }
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo) { base.OnRenderSizeChanged(sizeInfo); if (fitOnResize) Fit(); }
     private bool TryOutput(AutomationNode node, Point point, out AutomationBranch? branch)
     {
         branch = null;

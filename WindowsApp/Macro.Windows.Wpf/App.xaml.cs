@@ -34,11 +34,15 @@ public partial class App : Application
                 async Task CapturePage(string page, string suffix)
                 {
                     window.ShowPageForCapture(page);
+                    if (suffix == "-editor-wide") window.ShowSecondaryStateForCapture("macros-editor");
+                    if (suffix == "-node-wide") window.ShowSecondaryStateForCapture("automation-node");
+                    if (suffix == "-hotkeys-wide") window.ShowSecondaryStateForCapture("settings-hotkeys");
+                    if (suffix == "-permissions-wide") window.ShowSecondaryStateForCapture("settings-permissions");
                     await Task.Delay(75);
                     Visual visual = window;
                     var width = window.ActualWidth;
                     var height = window.ActualHeight;
-                    if (suffix == "-wide" && window.Content is FrameworkElement root)
+                    if (suffix.EndsWith("-wide", StringComparison.Ordinal) && window.Content is FrameworkElement root)
                     {
                         width = 1600;
                         height = 900;
@@ -64,6 +68,10 @@ public partial class App : Application
                     await CapturePage(page, "");
                 foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
                     await CapturePage(page, "-wide");
+                await CapturePage("Macros", "-editor-wide");
+                await CapturePage("Automation", "-node-wide");
+                await CapturePage("Settings", "-hotkeys-wide");
+                await CapturePage("Settings", "-permissions-wide");
                 window.Close();
                 Shutdown(0);
             });

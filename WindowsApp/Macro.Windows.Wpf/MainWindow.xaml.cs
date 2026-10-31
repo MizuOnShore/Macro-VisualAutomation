@@ -157,6 +157,16 @@ public partial class MainWindow : Window
     }
 
     internal void ShowPageForCapture(string page) => NavigateTo(page);
+    internal void ShowSecondaryStateForCapture(string state)
+    {
+        switch (state)
+        {
+            case "macros-editor": SetActionEditor(true); break;
+            case "automation-node": SelectNode(SelectedAutomation?.Nodes.FirstOrDefault(n => n.Kind == AutomationNodeKind.Start)); break;
+            case "settings-hotkeys": ShowSettingsTab("Hotkeys"); break;
+            case "settings-permissions": ShowSettingsTab("Permissions"); break;
+        }
+    }
     internal void FitCanvasForCapture() => FlowCanvas.Fit();
 
     private void FitWindowToWorkArea()
