@@ -7,13 +7,16 @@ Macro now includes native editions for both platforms:
 
 The editions share a compatible JSON macro format. Platform target identifiers differ: macOS stores bundle identifiers, while Windows stores process names in the same optional field.
 
-## Download for Windows
+## Downloads
 
-[**Download the latest Windows x64 release**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-Windows-x64.zip)
+- [**Download for Windows x64**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-Windows-x64.zip)
+- [**Download for macOS 14+**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-macOS-universal.zip) — Apple Silicon and Intel
 
-Unzip `Macro-Windows-x64.zip`, then run `Macro.exe`. The application is self-contained and does not require a separate .NET installation.
+On Windows, unzip `Macro-Windows-x64.zip`, then run `Macro.exe`. The application is self-contained and does not require a separate .NET installation.
 
-> **Windows notice:** The executable is not code-signed yet, so Microsoft SmartScreen may display an “unrecognized app” warning. Review the source in this repository and build it yourself if preferred.
+On macOS, unzip `Macro-macOS-universal.zip`, move `Macro.app` to Applications, then Control-click the app and choose **Open**. Grant Accessibility and Input Monitoring when prompted.
+
+> **Signing notice:** These community builds are not signed with commercial Apple or Microsoft developer certificates. Windows SmartScreen or macOS Gatekeeper may show an unrecognized-developer warning. Review the source in this repository and build it yourself if preferred.
 
 See [WindowsApp/README.md](WindowsApp/README.md) for features, limitations, and build instructions.
 
