@@ -12,7 +12,7 @@ struct MacroApp: App {
                 .frame(minWidth: 720, minHeight: 500)
         }
         .defaultSize(width: 1180, height: 760)
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandMenu("Macro") {
