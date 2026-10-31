@@ -174,6 +174,10 @@ public partial class MainWindow : Window
         SidebarColumn.Width = new GridLength(compact ? 168 : 190);
         MacroLibraryColumn.Width = new GridLength(1, GridUnitType.Star);
         MacroInspectorColumn.Width = new GridLength(ActualWidth >= 1500 ? 390 : compact ? 260 : 310);
+        Grid.SetRow(MacroPlaybackSegments, compact ? 1 : 0);
+        Grid.SetColumn(MacroPlaybackSegments, compact ? 0 : 1);
+        Grid.SetColumnSpan(MacroPlaybackSegments, compact ? 2 : 1);
+        MacroPlaybackSegments.Margin = compact ? new Thickness(0, 7, 0, 0) : new Thickness(0);
         TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
         AutomationLibraryColumn.Width = new GridLength(compact ? 195 : 220);
         AutomationInspectorColumn.Width = new GridLength(compact ? 250 : 285);

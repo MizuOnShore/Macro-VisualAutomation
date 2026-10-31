@@ -31,7 +31,7 @@ public partial class App : Application
                 }
                 var directory = e.Args[captureIndex + 1];
                 Directory.CreateDirectory(directory);
-                foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
+                void CapturePage(string page, string suffix)
                 {
                     window.ShowPageForCapture(page);
                     window.UpdateLayout();
@@ -43,9 +43,16 @@ public partial class App : Application
                     bitmap.Render(window);
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                    using var stream = File.Create(Path.Combine(directory, page.ToLowerInvariant() + ".png"));
+                    using var stream = File.Create(Path.Combine(directory, page.ToLowerInvariant() + suffix + ".png"));
                     encoder.Save(stream);
                 }
+                foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
+                    CapturePage(page, "");
+                window.Width = 1600;
+                window.Height = 900;
+                window.UpdateLayout();
+                foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
+                    CapturePage(page, "-wide");
                 window.Close();
                 Shutdown(0);
             });
