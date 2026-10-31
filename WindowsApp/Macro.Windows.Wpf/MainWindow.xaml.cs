@@ -155,6 +155,7 @@ public partial class MainWindow : Window
     }
 
     internal void ShowPageForCapture(string page) => NavigateTo(page);
+    internal void FitCanvasForCapture() => FlowCanvas.Fit();
 
     private void FitWindowToWorkArea()
     {
@@ -168,15 +169,20 @@ public partial class MainWindow : Window
         AdaptLayout();
     }
 
-    private void AdaptLayout()
+    private void AdaptLayout() => ApplyLayout(ActualWidth);
+
+    internal void ApplyCaptureLayout(double width) => ApplyLayout(width);
+
+    private void ApplyLayout(double width)
     {
-        var compact = ActualWidth > 0 && ActualWidth < 1120;
+        var compact = width > 0 && width < 1120;
         SidebarColumn.Width = new GridLength(compact ? 168 : 190);
         MacroLibraryColumn.Width = new GridLength(1, GridUnitType.Star);
-        MacroInspectorColumn.Width = new GridLength(ActualWidth >= 1500 ? 390 : compact ? 260 : 310);
+        MacroInspectorColumn.Width = new GridLength(width >= 1500 ? 390 : compact ? 260 : 310);
         Grid.SetRow(MacroPlaybackSegments, compact ? 1 : 0);
         Grid.SetColumn(MacroPlaybackSegments, compact ? 0 : 1);
         Grid.SetColumnSpan(MacroPlaybackSegments, compact ? 2 : 1);
+        Grid.SetColumnSpan(MacroPlaybackLabel, compact ? 2 : 1);
         MacroPlaybackSegments.Margin = compact ? new Thickness(0, 7, 0, 0) : new Thickness(0);
         TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
         AutomationLibraryColumn.Width = new GridLength(compact ? 195 : 220);

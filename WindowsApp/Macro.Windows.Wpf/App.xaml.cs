@@ -34,13 +34,26 @@ public partial class App : Application
                 void CapturePage(string page, string suffix)
                 {
                     window.ShowPageForCapture(page);
-                    window.UpdateLayout();
+                    Visual visual = window;
+                    var width = window.ActualWidth;
+                    var height = window.ActualHeight;
+                    if (suffix == "-wide" && window.Content is FrameworkElement root)
+                    {
+                        width = 1600;
+                        height = 900;
+                        window.ApplyCaptureLayout(width);
+                        root.Measure(new Size(width, height));
+                        root.Arrange(new Rect(0, 0, width, height));
+                        window.FitCanvasForCapture();
+                        visual = root;
+                    }
+                    else window.UpdateLayout();
                     var dpi = VisualTreeHelper.GetDpi(window);
                     var bitmap = new RenderTargetBitmap(
-                        Math.Max(1, (int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX)),
-                        Math.Max(1, (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY)),
+                        Math.Max(1, (int)Math.Ceiling(width * dpi.DpiScaleX)),
+                        Math.Max(1, (int)Math.Ceiling(height * dpi.DpiScaleY)),
                         96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
-                    bitmap.Render(window);
+                    bitmap.Render(visual);
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
                     using var stream = File.Create(Path.Combine(directory, page.ToLowerInvariant() + suffix + ".png"));
@@ -48,9 +61,6 @@ public partial class App : Application
                 }
                 foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
                     CapturePage(page, "");
-                window.Width = 1600;
-                window.Height = 900;
-                window.UpdateLayout();
                 foreach (var page in new[] { "Macros", "Recorder", "Target", "Logs", "Automation", "Settings" })
                     CapturePage(page, "-wide");
                 window.Close();
