@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     private const int HotkeyRecord = 1;
     private const int HotkeyStop = 2;
     private const int HotkeyPlay = 3;
+    private static readonly Key[] HotkeyOptions =
+    [Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, Key.F10, Key.F11, Key.F12];
 
     private readonly JsonStorage storage = new();
     private readonly TargetService targetService = new();
@@ -40,6 +42,17 @@ public partial class MainWindow : Window
     private bool automationInspectorOpen = true;
     private readonly DispatcherTimer recordingHudTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private DateTime recordingStartedAt;
+    private Key recordHotkey = Key.F6;
+    private Key stopHotkey = Key.F7;
+    private Key playHotkey = Key.F8;
+    private string HotkeysPath => Path.Combine(storage.DirectoryPath, "Hotkeys.json");
+
+    private sealed class HotkeySettings
+    {
+        public string Record { get; set; } = nameof(Key.F6);
+        public string Stop { get; set; } = nameof(Key.F7);
+        public string Play { get; set; } = nameof(Key.F8);
+    }
 
     private sealed class UiLogEntry
     {
@@ -61,6 +74,7 @@ public partial class MainWindow : Window
         LogList.ItemsSource = logEntries;
         UpdateLogEmptyState();
         Directory.CreateDirectory(storage.DirectoryPath);
+        LoadHotkeySettings();
         macros = SafeLoad(storage.LoadMacros, []);
         automations = SafeLoad(storage.LoadAutomations, []);
         FlowCanvas.MacroDetailResolver = id =>
@@ -77,6 +91,7 @@ public partial class MainWindow : Window
         ActionTypeBox.ItemsSource = Enum.GetValues<MacroActionType>();
         NodeBranch.ItemsSource = new[] { "Normal", "Yes", "No" };
         NodeBranch.SelectedIndex = 0;
+        ConfigureHotkeyControls();
         BuildNodeLibrary();
 
         FlowCanvas.NodeSelected += SelectNode;
@@ -100,7 +115,7 @@ public partial class MainWindow : Window
         {
             RecordState.Text = $"RECORDING · {count} ACTIONS";
             RecordTitle.Text = "Capturing input";
-            RecordDescription.Text = $"{count} actions captured. Use Stop or F7 when you are finished.";
+            RecordDescription.Text = $"{count} actions captured. Use Stop or {stopHotkey} when you are finished.";
         });
 
         SourceInitialized += (_, _) =>
@@ -708,7 +723,7 @@ public partial class MainWindow : Window
                 RecordDescription.Text = "Recording will begin automatically after the countdown.";
                 RecordMainButton.Content = "×  Cancel Countdown";
                 RecordButton.Content = "×";
-                RecordHotkey.Text = "F7";
+                RecordHotkey.Text = stopHotkey.ToString();
                 RecordingHudTimer.Text = $"00:0{i}";
                 ViewSavedMacroButton.Visibility = Visibility.Collapsed;
                 await Task.Delay(1000, token);
@@ -720,7 +735,7 @@ public partial class MainWindow : Window
             UpdateRecordingHud();
             RecordState.Text = "RECORDING · 0 ACTIONS";
             RecordTitle.Text = "Capturing input";
-            RecordDescription.Text = "Press F7 or Stop when you are finished.";
+            RecordDescription.Text = $"Press {stopHotkey} or Stop when you are finished.";
             RecordMainButton.Content = "■  Stop Recording";
             RecordButton.Content = "■";
             UpdateState();
@@ -786,7 +801,7 @@ public partial class MainWindow : Window
             : message;
         RecordMainButton.Content = "●  Start Recording";
         RecordButton.Content = "◎";
-        RecordHotkey.Text = "F6";
+        UpdateHotkeyLabels();
         ViewSavedMacroButton.Visibility = message.StartsWith("Saved", StringComparison.OrdinalIgnoreCase)
             ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -1597,10 +1612,110 @@ public partial class MainWindow : Window
         var handle = new WindowInteropHelper(this).Handle;
         windowSource = HwndSource.FromHwnd(handle);
         windowSource?.AddHook(WindowProc);
-        var okay = NativeMethods.RegisterHotKey(handle, HotkeyRecord, 0, 0x75)
-            & NativeMethods.RegisterHotKey(handle, HotkeyStop, 0, 0x76)
-            & NativeMethods.RegisterHotKey(handle, HotkeyPlay, 0, 0x77);
-        if (!okay) Log("One or more global hotkeys are already used by another application.", "warning");
+        TryRegisterHotkeys(recordHotkey, stopHotkey, playHotkey, false);
+    }
+
+    private void ConfigureHotkeyControls()
+    {
+        RecordHotkeyBox.ItemsSource = HotkeyOptions;
+        StopHotkeyBox.ItemsSource = HotkeyOptions;
+        PlayHotkeyBox.ItemsSource = HotkeyOptions;
+        RecordHotkeyBox.SelectedItem = recordHotkey;
+        StopHotkeyBox.SelectedItem = stopHotkey;
+        PlayHotkeyBox.SelectedItem = playHotkey;
+        UpdateHotkeyLabels();
+    }
+
+    private void LoadHotkeySettings()
+    {
+        try
+        {
+            if (!File.Exists(HotkeysPath)) return;
+            var settings = JsonSerializer.Deserialize<HotkeySettings>(File.ReadAllText(HotkeysPath));
+            if (settings is null) return;
+            if (Enum.TryParse(settings.Record, true, out Key record) && HotkeyOptions.Contains(record)) recordHotkey = record;
+            if (Enum.TryParse(settings.Stop, true, out Key stop) && HotkeyOptions.Contains(stop)) stopHotkey = stop;
+            if (Enum.TryParse(settings.Play, true, out Key play) && HotkeyOptions.Contains(play)) playHotkey = play;
+        }
+        catch { ResetHotkeyValues(); }
+    }
+
+    private void SaveHotkeySettings()
+    {
+        var settings = new HotkeySettings { Record = recordHotkey.ToString(), Stop = stopHotkey.ToString(), Play = playHotkey.ToString() };
+        File.WriteAllText(HotkeysPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    private void ResetHotkeyValues()
+    {
+        recordHotkey = Key.F6;
+        stopHotkey = Key.F7;
+        playHotkey = Key.F8;
+    }
+
+    private void UpdateHotkeyLabels()
+    {
+        if (RecordHotkey is not null) RecordHotkey.Text = recordHotkey.ToString();
+        if (RecordDescription is not null) RecordDescription.Text = recorder.IsRecording
+            ? $"Press {stopHotkey} or Stop when you are finished." : RecordDescription.Text;
+        if (RecordHotkeyBox is not null)
+        {
+            RecordHotkeyBox.SelectedItem = recordHotkey;
+            StopHotkeyBox.SelectedItem = stopHotkey;
+            PlayHotkeyBox.SelectedItem = playHotkey;
+        }
+    }
+
+    private bool TryRegisterHotkeys(Key record, Key stop, Key play, bool showMessage)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        for (var id = HotkeyRecord; id <= HotkeyPlay; id++) NativeMethods.UnregisterHotKey(handle, id);
+        var registered = new List<int>();
+        var values = new[] { (HotkeyRecord, record), (HotkeyStop, stop), (HotkeyPlay, play) };
+        foreach (var (id, key) in values)
+        {
+            if (NativeMethods.RegisterHotKey(handle, id, 0, (uint)KeyInterop.VirtualKeyFromKey(key))) registered.Add(id);
+            else
+            {
+                foreach (var registeredId in registered) NativeMethods.UnregisterHotKey(handle, registeredId);
+                HotkeyRegistrationStatus.Text = $"Could not register {key}. It may already be used by another app.";
+                HotkeyRegistrationStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F06A79"));
+                if (showMessage) MessageBox.Show(this, HotkeyRegistrationStatus.Text, "Global hotkeys", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+        }
+        HotkeyRegistrationStatus.Text = $"Active globally: {record} record · {stop} stop · {play} play.";
+        HotkeyRegistrationStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38C98A"));
+        return true;
+    }
+
+    private void ApplyHotkeys(object sender, RoutedEventArgs e)
+    {
+        if (RecordHotkeyBox.SelectedItem is not Key record || StopHotkeyBox.SelectedItem is not Key stop || PlayHotkeyBox.SelectedItem is not Key play) return;
+        if (record == stop || record == play || stop == play)
+        {
+            HotkeyRegistrationStatus.Text = "Choose three different keys.";
+            HotkeyRegistrationStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F06A79"));
+            return;
+        }
+        var previous = (recordHotkey, stopHotkey, playHotkey);
+        if (!TryRegisterHotkeys(record, stop, play, true))
+        {
+            (recordHotkey, stopHotkey, playHotkey) = previous;
+            TryRegisterHotkeys(recordHotkey, stopHotkey, playHotkey, false);
+            UpdateHotkeyLabels();
+            return;
+        }
+        recordHotkey = record; stopHotkey = stop; playHotkey = play;
+        SaveHotkeySettings();
+        UpdateHotkeyLabels();
+    }
+
+    private void RestoreHotkeys(object sender, RoutedEventArgs e)
+    {
+        ResetHotkeyValues();
+        ConfigureHotkeyControls();
+        if (TryRegisterHotkeys(recordHotkey, stopHotkey, playHotkey, true)) SaveHotkeySettings();
     }
 
     private void UnregisterHotkeys()
