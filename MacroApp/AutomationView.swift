@@ -86,6 +86,11 @@ struct AutomationView: View {
 
     private var automationToolbar: some View {
         HStack(spacing: 8) {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .foregroundStyle(.blue)
+                .frame(width: 30, height: 30)
+                .background(.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+
             Button {
                 withAnimation(.easeOut(duration: 0.18)) {
                     showLibrary.toggle()
@@ -95,12 +100,7 @@ struct AutomationView: View {
                 Image(systemName: "sidebar.left")
             }
             .buttonStyle(.borderless)
-            .help("Automation library")
-
-            Image(systemName: "point.3.connected.trianglepath.dotted")
-                .foregroundStyle(.blue)
-                .frame(width: 30, height: 30)
-                .background(.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+            .help("Show or hide automation library")
 
             VStack(alignment: .leading, spacing: 2) {
                 TextField("Automation name", text: Binding(
