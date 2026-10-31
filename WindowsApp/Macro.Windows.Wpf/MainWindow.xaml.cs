@@ -332,9 +332,12 @@ public partial class MainWindow : Window
     {
         actionEditing = editing;
         MacroOverviewCard.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        MacroList.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         ActionList.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         MacroInspectorOverview.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         ActionInspectorScroll.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        ActionFooter.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        LibraryFooter.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void ActionSelected(object sender, SelectionChangedEventArgs e)
