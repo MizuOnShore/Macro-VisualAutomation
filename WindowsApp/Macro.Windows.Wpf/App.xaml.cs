@@ -16,6 +16,11 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             if (!smokeTest && !captureUi) MessageBox.Show(args.Exception.Message, "Macro", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (smokeTest || captureUi)
+            {
+                try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "Macro-ui-test-error.txt"), args.Exception.ToString()); }
+                catch { }
+            }
             args.Handled = true;
             if (smokeTest || captureUi) Shutdown(1);
         };

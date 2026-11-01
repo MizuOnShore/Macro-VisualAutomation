@@ -25,12 +25,15 @@ jobs:
       - name: Start and validate the Windows UI
         shell: pwsh
         run: |
+          $errorPath = Join-Path $env:TEMP "Macro-ui-test-error.txt"
+          Remove-Item $errorPath -ErrorAction SilentlyContinue
           $process = Start-Process -FilePath "WindowsApp/artifacts/ci-win-x64/Macro.exe" -ArgumentList "--smoke-test" -PassThru
           if (-not $process.WaitForExit(30000)) {
             $process.Kill()
             throw "Macro did not complete its UI smoke test within 30 seconds."
           }
           if ($process.ExitCode -ne 0) {
+            if (Test-Path $errorPath) { Get-Content $errorPath }
             throw "Macro UI smoke test failed with exit code $($process.ExitCode)."
           }
       - name: Capture Windows pages for visual review
