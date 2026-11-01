@@ -15,6 +15,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private AutomationBranch? connectingBranch;
     private Point connectionPointer;
     private Point dragOrigin, panOrigin;
+    private double? alignmentGuideX, alignmentGuideY;
     private bool panning;
     private bool fitOnResize = true;
     public bool PanToolActive { get; set; }
@@ -29,7 +30,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     public Color CanvasColor { get; set; } = C("07111C");
     public Color GridColor { get; set; } = C("406384");
 
-    public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; Fit(); InvalidateVisual(); } }
+    public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; alignmentGuideX = alignmentGuideY = null; Fit(); InvalidateVisual(); } }
     public Guid? SelectedNodeId { get => selectedNodeId; set { selectedNodeId = value; InvalidateVisual(); } }
     public Guid? ActiveNodeId { get => activeNodeId; set { activeNodeId = value; InvalidateVisual(); } }
     public double Zoom => zoom;
@@ -85,9 +86,14 @@ internal sealed class WorkflowCanvas : FrameworkElement
             dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(28, 42, 112, 196)), new Pen(new SolidColorBrush(Color.FromArgb(90, 63, 139, 230)), 1.2 / zoom), r, 14, 14);
             Text(dc, section.Title, new Point(r.X + 12, r.Y + 9), 12, Brushes.SlateGray, semibold);
         }
+        foreach (var node in workflow.Nodes.Where(n => n.Kind == AutomationNodeKind.RepeatFlow && n.RepeatTargetNodeID is not null))
+            DrawLoopReference(dc, node, node.RepeatTargetNodeID!.Value, C("B16CFF"));
+        foreach (var node in workflow.Nodes.Where(n => n.Kind == AutomationNodeKind.LoopBack && n.JumpTargetNodeID is not null))
+            DrawLoopReference(dc, node, node.JumpTargetNodeID!.Value, C("43BCD1"));
         foreach (var link in workflow.Connections) DrawConnection(dc, link);
         if (connectingSource is not null) DrawConnectionPreview(dc);
         foreach (var node in workflow.Nodes) DrawNode(dc, node);
+        DrawAlignmentGuides(dc);
         dc.Pop(); dc.Pop();
     }
 
@@ -105,11 +111,107 @@ internal sealed class WorkflowCanvas : FrameworkElement
         var start = new Point(a.Position.X + NodeWidth / 2, a.Position.Y + NodeHeight); var end = new Point(b.Position.X + NodeWidth / 2, b.Position.Y);
         if (link.Branch == AutomationBranch.Yes) start.X -= 38; if (link.Branch == AutomationBranch.No) start.X += 38;
         var color = link.Branch == AutomationBranch.Yes ? C("33C481") : link.Branch == AutomationBranch.No ? C("F06A79") : C("4C8DE8");
-        var geometry = new StreamGeometry(); using (var ctx = geometry.Open()) { ctx.BeginFigure(start, false, false); var dy = Math.Max(44, Math.Abs(end.Y - start.Y) * .45); ctx.BezierTo(new(start.X, start.Y + dy), new(end.X, end.Y - dy), end, true, false); }
-        dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), 2.2 / zoom), geometry);
+        DrawRoutedWire(dc, start, end, color, false);
         dc.DrawEllipse(new SolidColorBrush(color), null, end, 4.2 / zoom, 4.2 / zoom);
         if (link.Branch is not null) Text(dc, link.Branch == AutomationBranch.Yes ? "YES" : "NO", new(start.X + 7, start.Y + 6), 9, new SolidColorBrush(color), semibold);
     }
+
+    private void DrawLoopReference(DrawingContext dc, AutomationNode source, Guid targetId, Color color)
+    {
+        var target = workflow!.Nodes.FirstOrDefault(n => n.Id == targetId);
+        if (target is null) return;
+        var start = new Point(source.Position.X + NodeWidth, source.Position.Y + NodeHeight / 2);
+        var end = new Point(target.Position.X + NodeWidth, target.Position.Y + NodeHeight / 2);
+        DrawRoutedWire(dc, start, end, color, true);
+        dc.DrawEllipse(new SolidColorBrush(CanvasColor), new Pen(new SolidColorBrush(color), 2.2 / zoom), start, 5 / zoom, 5 / zoom);
+        dc.DrawEllipse(new SolidColorBrush(CanvasColor), new Pen(new SolidColorBrush(color), 2.2 / zoom), end, 5 / zoom, 5 / zoom);
+    }
+
+    private void DrawRoutedWire(DrawingContext dc, Point start, Point end, Color color, bool sidePorts)
+    {
+        const double stub = 24;
+        var startStub = sidePorts ? new Point(start.X + stub, start.Y) : new Point(start.X, start.Y + stub);
+        var endStub = sidePorts ? new Point(end.X + stub, end.Y) : new Point(end.X, end.Y - stub);
+        var points = new List<Point> { start };
+        points.AddRange(RouteWire(startStub, endStub));
+        points.Add(end);
+        points = Simplify(points);
+
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            context.BeginFigure(points[0], false, false);
+            context.PolyLineTo(points.Skip(1).ToList(), true, false);
+        }
+        dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), 2.2 / zoom) { LineJoin = PenLineJoin.Round }, geometry);
+    }
+
+    private List<Point> RouteWire(Point start, Point end)
+    {
+        if (workflow is null) return [start, end];
+        var obstacles = workflow.Nodes.Select(NodeObstacle).ToList();
+        var xChannels = Unique([start.X, end.X, (start.X + end.X) / 2, .. obstacles.SelectMany(r => new[] { r.Left - 12, r.Right + 12 })]);
+        var yChannels = Unique([start.Y, end.Y, (start.Y + end.Y) / 2, .. obstacles.SelectMany(r => new[] { r.Top - 12, r.Bottom + 12 })]);
+        var candidates = new List<List<Point>>();
+        foreach (var x in xChannels) candidates.Add([start, new(x, start.Y), new(x, end.Y), end]);
+        foreach (var y in yChannels) candidates.Add([start, new(start.X, y), new(end.X, y), end]);
+        foreach (var x in xChannels)
+        foreach (var y in yChannels)
+        {
+            candidates.Add([start, new(x, start.Y), new(x, y), new(end.X, y), end]);
+            candidates.Add([start, new(start.X, y), new(x, y), new(x, end.Y), end]);
+        }
+
+        var valid = candidates.Select(Simplify)
+            .Where(points => points.Zip(points.Skip(1)).All(pair => !SegmentIntersects(pair.First, pair.Second, obstacles)))
+            .OrderBy(RouteCost)
+            .FirstOrDefault();
+        if (valid is not null) return valid;
+
+        var outerX = obstacles.Count == 0 ? Math.Max(start.X, end.X) + 40 : obstacles.Max(r => r.Right) + 40;
+        return [start, new(outerX, start.Y), new(outerX, end.Y), end];
+    }
+
+    private static Rect NodeObstacle(AutomationNode node)
+    {
+        const double clearance = 6;
+        return new Rect(node.Position.X - clearance, node.Position.Y - clearance, NodeWidth + clearance * 2, NodeHeight + clearance * 2);
+    }
+
+    private static List<double> Unique(IEnumerable<double> values)
+    {
+        var result = new List<double>();
+        foreach (var value in values.OrderBy(value => value))
+            if (result.Count == 0 || Math.Abs(result[^1] - value) > .5) result.Add(value);
+        return result;
+    }
+
+    private static List<Point> Simplify(IEnumerable<Point> values)
+    {
+        var result = new List<Point>();
+        foreach (var point in values)
+        {
+            if (result.Count == 0 || (result[^1] - point).Length > .5) result.Add(point);
+            while (result.Count >= 3)
+            {
+                var a = result[^3]; var b = result[^2]; var c = result[^1];
+                if (Math.Abs(a.X - b.X) < .5 && Math.Abs(b.X - c.X) < .5 || Math.Abs(a.Y - b.Y) < .5 && Math.Abs(b.Y - c.Y) < .5)
+                    result.RemoveAt(result.Count - 2);
+                else break;
+            }
+        }
+        return result;
+    }
+
+    private static double RouteCost(IReadOnlyList<Point> points) =>
+        points.Zip(points.Skip(1)).Sum(pair => Math.Abs(pair.Second.X - pair.First.X) + Math.Abs(pair.Second.Y - pair.First.Y)) + Math.Max(0, points.Count - 2) * 18;
+
+    private static bool SegmentIntersects(Point start, Point end, IReadOnlyList<Rect> obstacles) => obstacles.Any(rect =>
+        Math.Abs(start.Y - end.Y) < .5
+            ? start.Y > rect.Top && start.Y < rect.Bottom && Math.Max(start.X, end.X) > rect.Left && Math.Min(start.X, end.X) < rect.Right
+            : Math.Abs(start.X - end.X) < .5
+                ? start.X > rect.Left && start.X < rect.Right && Math.Max(start.Y, end.Y) > rect.Top && Math.Min(start.Y, end.Y) < rect.Bottom
+                : true);
     private void DrawNode(DrawingContext dc, AutomationNode node)
     {
         dc.PushOpacity(node.IsEnabled ? 1 : .45);
@@ -131,7 +233,18 @@ internal sealed class WorkflowCanvas : FrameworkElement
         else if (node.Kind is not AutomationNodeKind.Stop and not AutomationNodeKind.Note)
             dc.DrawEllipse(new SolidColorBrush(accent), null, OutputPoint(node, null), 5 / zoom, 5 / zoom);
         if (node.Kind != AutomationNodeKind.Start) dc.DrawEllipse(new SolidColorBrush(C("6F8498")), null, new Point(r.X + NodeWidth / 2, r.Top), 4 / zoom, 4 / zoom);
+        if (node.Kind is AutomationNodeKind.RepeatFlow or AutomationNodeKind.LoopBack)
+            dc.DrawEllipse(new SolidColorBrush(CanvasColor), new Pen(new SolidColorBrush(node.Kind == AutomationNodeKind.RepeatFlow ? C("B16CFF") : C("43BCD1")), 2.2 / zoom), new Point(r.Right, r.Top + NodeHeight / 2), 5 / zoom, 5 / zoom);
         dc.Pop();
+    }
+
+    private void DrawAlignmentGuides(DrawingContext dc)
+    {
+        var pen = new Pen(new SolidColorBrush(C("1785FF")), Math.Max(.75, 1 / zoom));
+        var left = -pan.X / zoom; var right = (ActualWidth - pan.X) / zoom;
+        var top = -pan.Y / zoom; var bottom = (ActualHeight - pan.Y) / zoom;
+        if (alignmentGuideX is double x) dc.DrawLine(pen, new Point(x, top), new Point(x, bottom));
+        if (alignmentGuideY is double y) dc.DrawLine(pen, new Point(left, y), new Point(right, y));
     }
     private void DrawConnectionPreview(DrawingContext dc)
     {
@@ -191,7 +304,10 @@ internal sealed class WorkflowCanvas : FrameworkElement
         if (panning && (e.MiddleButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed || PanToolActive && e.LeftButton == MouseButtonState.Pressed)) { pan += p - panOrigin; panOrigin = p; InvalidateVisual(); return; }
         if (connectingSource is not null && e.LeftButton == MouseButtonState.Pressed) { connectionPointer = Logical(p); InvalidateVisual(); return; }
         if (draggingNodeId is null || e.LeftButton != MouseButtonState.Pressed || workflow is null) return;
-        var q = Logical(p); var node = workflow.Nodes.First(n => n.Id == draggingNodeId); node.Position.X = Math.Max(0, q.X - dragOrigin.X); node.Position.Y = Math.Max(0, q.Y - dragOrigin.Y); InvalidateVisual();
+        var q = Logical(p); var node = workflow.Nodes.First(n => n.Id == draggingNodeId);
+        var proposed = new Point(Math.Max(0, q.X - dragOrigin.X), Math.Max(0, q.Y - dragOrigin.Y));
+        var snapped = SnapNode(node, proposed);
+        node.Position.X = snapped.X; node.Position.Y = snapped.Y; InvalidateVisual();
     }
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
@@ -202,6 +318,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
             connectingSource = null; connectingBranch = null; InvalidateVisual();
         }
         if (draggingNodeId is not null) WorkflowChanged?.Invoke();
+        alignmentGuideX = alignmentGuideY = null;
         draggingNodeId = null; panning = false; ReleaseMouseCapture();
     }
     protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -220,6 +337,34 @@ internal sealed class WorkflowCanvas : FrameworkElement
             return false;
         }
         return (point - OutputPoint(node, null)).Length <= 14;
+    }
+
+    private Point SnapNode(AutomationNode movingNode, Point proposed)
+    {
+        alignmentGuideX = alignmentGuideY = null;
+        if (workflow is null || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return proposed;
+        var others = workflow.Nodes.Where(node => node.Id != movingNode.Id).Select(Rect).ToList();
+        if (others.Count == 0) return proposed;
+        var threshold = 8 / Math.Max(.25, zoom);
+        var movingX = new[] { proposed.X, proposed.X + NodeWidth / 2, proposed.X + NodeWidth };
+        var movingY = new[] { proposed.Y, proposed.Y + NodeHeight / 2, proposed.Y + NodeHeight };
+        var xSnap = ClosestSnap(movingX, others.SelectMany(rect => new[] { rect.Left, rect.Left + rect.Width / 2, rect.Right }), threshold);
+        var ySnap = ClosestSnap(movingY, others.SelectMany(rect => new[] { rect.Top, rect.Top + rect.Height / 2, rect.Bottom }), threshold);
+        alignmentGuideX = xSnap?.Guide; alignmentGuideY = ySnap?.Guide;
+        return new Point(Math.Max(0, proposed.X + (xSnap?.Adjustment ?? 0)), Math.Max(0, proposed.Y + (ySnap?.Adjustment ?? 0)));
+    }
+
+    private static (double Adjustment, double Guide)? ClosestSnap(IEnumerable<double> moving, IEnumerable<double> targets, double threshold)
+    {
+        (double Adjustment, double Guide)? best = null;
+        foreach (var movingValue in moving)
+        foreach (var target in targets)
+        {
+            var adjustment = target - movingValue;
+            if (Math.Abs(adjustment) > threshold || best is not null && Math.Abs(adjustment) >= Math.Abs(best.Value.Adjustment)) continue;
+            best = (adjustment, target);
+        }
+        return best;
     }
     private void Text(DrawingContext dc, string value, Point p, double size, Brush brush, Typeface face) => dc.DrawText(new FormattedText(value, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, face, size, brush, VisualTreeHelper.GetDpi(this).PixelsPerDip), p);
     private static Color C(string hex) => (Color)ColorConverter.ConvertFromString("#" + hex);

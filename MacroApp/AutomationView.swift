@@ -699,6 +699,11 @@ private struct CanvasLibraryDropDelegate: DropDelegate {
     }
 }
 
+private struct CanvasAlignmentGuides: Equatable {
+    var x: CGFloat?
+    var y: CGFloat?
+}
+
 private struct AutomationCanvasView: View {
     @ObservedObject var store: AutomationStore
     @ObservedObject var model: AppModel
@@ -714,6 +719,7 @@ private struct AutomationCanvasView: View {
     @State private var marqueeEnd: CGPoint?
     @State private var groupDragOrigins: [UUID: CGPoint] = [:]
     @State private var nodeDragInProgress = false
+    @State private var alignmentGuides = CanvasAlignmentGuides()
     @State private var sectionDragInProgress = false
     @State private var activeCanvasTool: AutomationCanvasTool = .select
     @State private var sectionToolStart: CGPoint?
@@ -942,13 +948,13 @@ private struct AutomationCanvasView: View {
                     if let targetID = repeatNode.repeatTargetNodeID,
                        let start = loopPoint(repeatNode.id, in: automation),
                        let end = loopPoint(targetID, in: automation) {
-                        let obstacles = wireObstacles(excluding: [repeatNode.id, targetID], in: automation)
+                        let obstacles = wireObstacles(in: automation)
                         let wire = WorkflowConnectionShape(
                             start: start,
                             end: end,
                             style: .bent,
                             obstacles: obstacles,
-                            usesVerticalPortStubs: false
+                            portStubStyle: .rightSide
                         )
                         wire
                             .stroke(
@@ -965,13 +971,13 @@ private struct AutomationCanvasView: View {
                     if let targetID = loopNode.jumpTargetNodeID,
                        let start = loopPoint(loopNode.id, in: automation),
                        let end = loopPoint(targetID, in: automation) {
-                        let obstacles = wireObstacles(excluding: [loopNode.id, targetID], in: automation)
+                        let obstacles = wireObstacles(in: automation)
                         let wire = WorkflowConnectionShape(
                             start: start,
                             end: end,
                             style: .bent,
                             obstacles: obstacles,
-                            usesVerticalPortStubs: false
+                            portStubStyle: .rightSide
                         )
                         wire
                             .stroke(Color.teal.opacity(0.9), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
@@ -984,7 +990,7 @@ private struct AutomationCanvasView: View {
                 ForEach(automation.connections) { connection in
                     if let start = outputPoint(connection.sourceNodeID, branch: connection.branch, in: automation),
                        let end = inputPoint(connection.targetNodeID, in: automation) {
-                        let obstacles = wireObstacles(excluding: [connection.sourceNodeID, connection.targetNodeID], in: automation)
+                        let obstacles = wireObstacles(in: automation)
                         let wire = WorkflowConnectionShape(start: start, end: end, style: connection.resolvedStyle, obstacles: obstacles, bendPoint: connection.bendPoint?.cgPoint)
                         wire
                             .stroke(
@@ -1097,6 +1103,7 @@ private struct AutomationCanvasView: View {
                         },
                         onMoveEnded: {
                             nodeDragInProgress = false
+                            alignmentGuides = CanvasAlignmentGuides()
                             groupDragOrigins.removeAll()
                             resolveNodeCollisions(for: selectedNodeIDs)
                             reconcileSectionMembership(for: selectedNodeIDs)
@@ -1131,6 +1138,23 @@ private struct AutomationCanvasView: View {
                         }
                     )
                     .position(node.position.cgPoint)
+                }
+
+                if let x = alignmentGuides.x {
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.9))
+                        .frame(width: max(1 / zoom, 0.75), height: 1600)
+                        .position(x: x, y: 800)
+                        .allowsHitTesting(false)
+                        .zIndex(20)
+                }
+                if let y = alignmentGuides.y {
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.9))
+                        .frame(width: 2400, height: max(1 / zoom, 0.75))
+                        .position(x: 1200, y: y)
+                        .allowsHitTesting(false)
+                        .zIndex(20)
                 }
             } else {
                 ContentUnavailableView(
@@ -1344,10 +1368,62 @@ private struct AutomationCanvasView: View {
             store.setNodePosition(draggedNodeID, to: point)
             return
         }
-        let delta = CGPoint(x: point.x - draggedOrigin.x, y: point.y - draggedOrigin.y)
+        let rawDelta = CGPoint(x: point.x - draggedOrigin.x, y: point.y - draggedOrigin.y)
+        let snapped = snappedDragDelta(rawDelta, nodes: nodes)
+        alignmentGuides = snapped.guides
         for (nodeID, origin) in groupDragOrigins {
-            store.setNodePosition(nodeID, to: CGPoint(x: origin.x + delta.x, y: origin.y + delta.y))
+            store.setNodePosition(nodeID, to: CGPoint(x: origin.x + snapped.delta.x, y: origin.y + snapped.delta.y))
         }
+    }
+
+    private func snappedDragDelta(_ delta: CGPoint, nodes: [AutomationNode]) -> (delta: CGPoint, guides: CanvasAlignmentGuides) {
+        guard !NSEvent.modifierFlags.contains(.option), !groupDragOrigins.isEmpty else {
+            return (delta, CanvasAlignmentGuides())
+        }
+
+        let movingIDs = Set(groupDragOrigins.keys)
+        let stationaryNodes = nodes.filter { !movingIDs.contains($0.id) }
+        guard !stationaryNodes.isEmpty else { return (delta, CanvasAlignmentGuides()) }
+
+        let originFrames = groupDragOrigins.values.map { origin in
+            CGRect(
+                x: origin.x - nodeSize.width / 2,
+                y: origin.y - nodeSize.height / 2,
+                width: nodeSize.width,
+                height: nodeSize.height
+            )
+        }
+        guard let firstFrame = originFrames.first else { return (delta, CanvasAlignmentGuides()) }
+        let originBounds = originFrames.dropFirst().reduce(firstFrame) { $0.union($1) }
+        let proposedBounds = originBounds.offsetBy(dx: delta.x, dy: delta.y)
+        let threshold = 8 / max(zoom, 0.25)
+
+        let movingX = [proposedBounds.minX, proposedBounds.midX, proposedBounds.maxX]
+        let movingY = [proposedBounds.minY, proposedBounds.midY, proposedBounds.maxY]
+        let stationaryFrames = stationaryNodes.map(nodeFrame)
+        let targetX = stationaryFrames.flatMap { [$0.minX, $0.midX, $0.maxX] }
+        let targetY = stationaryFrames.flatMap { [$0.minY, $0.midY, $0.maxY] }
+
+        let xSnap = closestSnap(moving: movingX, targets: targetX, threshold: threshold)
+        let ySnap = closestSnap(moving: movingY, targets: targetY, threshold: threshold)
+        return (
+            CGPoint(x: delta.x + (xSnap?.adjustment ?? 0), y: delta.y + (ySnap?.adjustment ?? 0)),
+            CanvasAlignmentGuides(x: xSnap?.guide, y: ySnap?.guide)
+        )
+    }
+
+    private func closestSnap(moving: [CGFloat], targets: [CGFloat], threshold: CGFloat) -> (adjustment: CGFloat, guide: CGFloat)? {
+        var best: (adjustment: CGFloat, guide: CGFloat)?
+        for movingValue in moving {
+            for target in targets {
+                let adjustment = target - movingValue
+                guard abs(adjustment) <= threshold else { continue }
+                if best == nil || abs(adjustment) < abs(best!.adjustment) {
+                    best = (adjustment, target)
+                }
+            }
+        }
+        return best
     }
 
     private func deleteCanvasSelection() {
@@ -1789,10 +1865,12 @@ private struct AutomationCanvasView: View {
         return CGPoint(x: CGFloat(node.position.x) + nodeSize.width / 2, y: CGFloat(node.position.y))
     }
 
-    private func wireObstacles(excluding nodeIDs: Set<UUID>, in automation: AutomationDefinition) -> [CGRect] {
-        automation.nodes.compactMap { node in
-            guard !nodeIDs.contains(node.id) else { return nil }
-            let clearance: CGFloat = 14
+    private func wireObstacles(in automation: AutomationDefinition) -> [CGRect] {
+        automation.nodes.map { node in
+            // Keep cards solid while preserving narrow, visually valid channels
+            // between nearby nodes. The router adds another 12 points whenever
+            // it deliberately chooses an outside channel.
+            let clearance: CGFloat = 6
             return CGRect(
                 x: CGFloat(node.position.x) - nodeSize.width / 2 - clearance,
                 y: CGFloat(node.position.y) - nodeSize.height / 2 - clearance,
@@ -2410,13 +2488,18 @@ private struct WorkflowNodeCard: View {
     }
 }
 
+private enum WorkflowPortStubStyle {
+    case vertical
+    case rightSide
+}
+
 private struct WorkflowConnectionShape: Shape {
     let start: CGPoint
     let end: CGPoint
     var style: AutomationConnectionStyle = .curved
     var obstacles: [CGRect] = []
     var bendPoint: CGPoint? = nil
-    var usesVerticalPortStubs = true
+    var portStubStyle: WorkflowPortStubStyle = .vertical
 
     func path(in rect: CGRect) -> Path {
         if let bendPoint {
@@ -2446,19 +2529,20 @@ private struct WorkflowConnectionShape: Shape {
     /// Without these stubs, an orthogonal route may turn along the card edge and
     /// the node (drawn above the wire) makes it look attached to a side instead.
     private func routedPath(through bendPoint: CGPoint? = nil) -> Path {
-        guard usesVerticalPortStubs else {
-            if let bendPoint {
-                let first = WorkflowWireRouter.route(from: start, to: bendPoint, avoiding: obstacles)
-                let second = WorkflowWireRouter.route(from: bendPoint, to: end, avoiding: obstacles)
-                return polyline(first + second.dropFirst())
-            }
-            return WorkflowWireRouter.path(from: start, to: end, avoiding: obstacles)
+        // Node obstacles include 6 points of visual clearance. A 24-point stub
+        // moves the routable part of the wire fully outside its source/target
+        // card before obstacle avoidance begins.
+        let stubLength: CGFloat = 24
+        let startStub: CGPoint
+        let endStub: CGPoint
+        switch portStubStyle {
+        case .vertical:
+            startStub = CGPoint(x: start.x, y: start.y + stubLength)
+            endStub = CGPoint(x: end.x, y: end.y - stubLength)
+        case .rightSide:
+            startStub = CGPoint(x: start.x + stubLength, y: start.y)
+            endStub = CGPoint(x: end.x + stubLength, y: end.y)
         }
-
-        let availableDistance = abs(end.y - start.y)
-        let stubLength = min(24, max(12, availableDistance * 0.16))
-        let startStub = CGPoint(x: start.x, y: start.y + stubLength)
-        let endStub = CGPoint(x: end.x, y: end.y - stubLength)
         let middle: [CGPoint]
         if let bendPoint {
             let first = WorkflowWireRouter.route(from: startStub, to: bendPoint, avoiding: obstacles)

@@ -20,6 +20,8 @@ jobs:
         run: dotnet run --project WindowsApp/Macro.Tests/Macro.Tests.csproj -c Release
       - name: Publish self-contained WPF application
         run: dotnet publish WindowsApp/Macro.Windows.Wpf/Macro.Windows.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o WindowsApp/artifacts/ci-win-x64
+      - name: Publish self-contained WPF application for ARM64
+        run: dotnet publish WindowsApp/Macro.Windows.Wpf/Macro.Windows.Wpf.csproj -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o WindowsApp/artifacts/ci-win-arm64
       - name: Start and validate the Windows UI
         shell: pwsh
         run: |
@@ -42,3 +44,11 @@ jobs:
         with:
           name: windows-ui-pages
           path: WindowsApp/artifacts/ui-capture/*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Macro-Windows-x64
+          path: WindowsApp/artifacts/ci-win-x64/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Macro-Windows-arm64
+          path: WindowsApp/artifacts/ci-win-arm64/*

@@ -10,6 +10,7 @@ The editions share a compatible JSON macro format. Platform target identifiers d
 ## Downloads
 
 - [**Download for Windows x64**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-Windows-x64.zip)
+- [**Download for Windows ARM64**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-Windows-arm64.zip)
 - [**Download for macOS 14+**](https://github.com/MizuOnShore/Macro-VisualAutomation/releases/latest/download/Macro-macOS-universal.zip) — Apple Silicon and Intel
 
 On Windows, unzip `Macro-Windows-x64.zip`, then run `Macro.exe`. The application is self-contained and does not require a separate .NET installation.
