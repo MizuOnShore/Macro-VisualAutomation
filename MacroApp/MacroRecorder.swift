@@ -2,6 +2,10 @@ import AppKit
 import CoreGraphics
 
 final class MacroRecorder {
+    // Keep the recorded path dense enough for faithful drags and pointer
+    // corrections. The old 50 ms / 4 px filter visibly changed fast motion.
+    private static let moveSampleInterval: TimeInterval = 1.0 / 120.0
+    private static let moveDistanceThreshold: CGFloat = 1
     private struct PendingMouseDown {
         let timestamp: TimeInterval
         let coordinates: CGPoint
@@ -220,8 +224,8 @@ final class MacroRecorder {
     }
 
     private func shouldRecordMove(at point: CGPoint, time: TimeInterval) -> Bool {
-        guard time - lastMoveTime >= 0.05,
-              hypot(point.x - lastMovePoint.x, point.y - lastMovePoint.y) >= 4 else { return false }
+        guard time - lastMoveTime >= Self.moveSampleInterval,
+              hypot(point.x - lastMovePoint.x, point.y - lastMovePoint.y) >= Self.moveDistanceThreshold else { return false }
         lastMoveTime = time
         lastMovePoint = point
         return true

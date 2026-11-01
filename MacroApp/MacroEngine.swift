@@ -269,7 +269,9 @@ final class MacroEngine {
 
             let now = DispatchTime.now().uptimeNanoseconds
             guard deadline > now else { return deadline }
-            try await Task.sleep(nanoseconds: min(deadline - now, 20_000_000))
+            // Use short scheduling slices so dense recorded mouse paths and
+            // key transitions do not visibly drift between actions.
+            try await Task.sleep(nanoseconds: min(deadline - now, 2_000_000))
         }
     }
 
@@ -284,7 +286,7 @@ final class MacroEngine {
     private func waitWhilePaused() async throws {
         while state == .paused {
             try Task.checkCancellation()
-            try await Task.sleep(nanoseconds: 20_000_000)
+            try await Task.sleep(nanoseconds: 2_000_000)
         }
     }
 

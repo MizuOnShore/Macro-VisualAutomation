@@ -152,7 +152,9 @@ public sealed class MacroRunner
         {
             token.ThrowIfCancellationRequested();
             if (State == RunState.Paused) { await Task.Delay(20, token); timer.Restart(); continue; }
-            var slice = remaining < TimeSpan.FromMilliseconds(20) ? remaining : TimeSpan.FromMilliseconds(20);
+            // Keep the scheduler responsive enough for dense recorded pointer
+            // paths and short keyboard transitions.
+            var slice = remaining < TimeSpan.FromMilliseconds(2) ? remaining : TimeSpan.FromMilliseconds(2);
             await Task.Delay(slice, token);
             remaining -= timer.Elapsed;
             timer.Restart();

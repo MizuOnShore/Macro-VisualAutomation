@@ -7,14 +7,16 @@ namespace Macro.Windows;
 
 internal sealed class WindowsRecorder : IDisposable
 {
-    private sealed record Pending(DateTime Time, double Delay, int X, int Y);
+    private const double MoveSampleIntervalSeconds = 1.0 / 120.0;
+    private const double MoveDistanceThreshold = 1.0;
+    private sealed record Pending(long Tick, double Delay, int X, int Y);
     private readonly List<MacroAction> actions = [];
     private readonly Dictionary<MacroMouseButton, Pending> pending = [];
     private readonly HashSet<uint> heldKeys = [];
     private nint keyboardHook, mouseHook;
     private NativeMethods.HookProc? keyboardProc, mouseProc;
-    private DateTime? lastEvent;
-    private DateTime lastMove;
+    private long? lastEventTick;
+    private long lastMoveTick;
     private Point lastMovePoint = new(-10000, -10000);
     private TargetWindow? target;
     public bool IsRecording => keyboardHook != 0 || mouseHook != 0;
@@ -23,7 +25,7 @@ internal sealed class WindowsRecorder : IDisposable
     public void Start(TargetWindow? selectedTarget)
     {
         if (IsRecording) return;
-        target = selectedTarget; actions.Clear(); pending.Clear(); heldKeys.Clear(); lastEvent = null;
+        target = selectedTarget; actions.Clear(); pending.Clear(); heldKeys.Clear(); lastEventTick = null; lastMoveTick = 0;
         keyboardProc = KeyboardCallback; mouseProc = MouseCallback;
         var module = NativeMethods.GetModuleHandle(null);
         keyboardHook = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, keyboardProc, module, 0);
@@ -81,7 +83,7 @@ internal sealed class WindowsRecorder : IDisposable
                     message is 0x0204 or 0x0205 ? MacroMouseButton.Right : MacroMouseButton.Middle;
                 if (message is 0x0201 or 0x0204 or 0x0207)
                 {
-                    pending[button] = new(DateTime.UtcNow, NextDelay(), x, y);
+                    pending[button] = new(Stopwatch.GetTimestamp(), NextDelay(), x, y);
                 }
                 else if (message is 0x0202 or 0x0205 or 0x0208)
                 {
@@ -91,14 +93,14 @@ internal sealed class WindowsRecorder : IDisposable
                         {
                             Type = button switch { MacroMouseButton.Left => MacroActionType.LeftClick, MacroMouseButton.Right => MacroActionType.RightClick, _ => MacroActionType.MiddleClick },
                             MouseButton = button, X = down.X, Y = down.Y, Delay = down.Delay,
-                            Duration = Math.Max(.01, (DateTime.UtcNow - down.Time).TotalSeconds), UsesWindowCoordinates = target is not null
+                            Duration = Math.Max(.01, ElapsedSeconds(down.Tick, Stopwatch.GetTimestamp())), UsesWindowCoordinates = target is not null
                         });
                     }
                 }
                 else if (message == 0x0200)
                 {
-                    var now = DateTime.UtcNow;
-                    if ((now - lastMove).TotalMilliseconds >= 50 && Math.Sqrt(Math.Pow(info.Point.X - lastMovePoint.X, 2) + Math.Pow(info.Point.Y - lastMovePoint.Y, 2)) >= 4)
+                    var now = Stopwatch.GetTimestamp();
+                    if (ElapsedSeconds(lastMoveTick, now) >= MoveSampleIntervalSeconds && Math.Sqrt(Math.Pow(info.Point.X - lastMovePoint.X, 2) + Math.Pow(info.Point.Y - lastMovePoint.Y, 2)) >= MoveDistanceThreshold)
                     {
                         foreach (var (held, down) in pending.ToArray())
                         {
@@ -106,7 +108,7 @@ internal sealed class WindowsRecorder : IDisposable
                             pending.Remove(held);
                         }
                         Add(new() { Type = MacroActionType.Move, X = x, Y = y, Delay = NextDelay(), UsesWindowCoordinates = target is not null });
-                        lastMove = now; lastMovePoint = new(info.Point.X, info.Point.Y);
+                        lastMoveTick = now; lastMovePoint = new(info.Point.X, info.Point.Y);
                     }
                 }
                 else if (message is 0x020A or 0x020E)
@@ -127,13 +129,16 @@ internal sealed class WindowsRecorder : IDisposable
     private (int, int) Coordinates(int x, int y) => target is null ? (x, y) : (x - target.X, y - target.Y);
     private double NextDelay()
     {
-        var now = DateTime.UtcNow; var delay = lastEvent.HasValue ? (now - lastEvent.Value).TotalSeconds : 0;
-        lastEvent = now; return Math.Max(0, delay);
+        var now = Stopwatch.GetTimestamp();
+        var delay = lastEventTick is { } previous ? ElapsedSeconds(previous, now) : 0;
+        lastEventTick = now; return Math.Max(0, delay);
     }
     private void Add(MacroAction action)
     {
-        actions.Add(action); lastEvent = DateTime.UtcNow; ActionCountChanged?.Invoke(actions.Count);
+        actions.Add(action); lastEventTick = Stopwatch.GetTimestamp(); ActionCountChanged?.Invoke(actions.Count);
     }
+
+    private static double ElapsedSeconds(long start, long end) => (end - start) / (double)Stopwatch.Frequency;
 
     private static string KeyName(uint vk)
     {
