@@ -186,10 +186,12 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
     var mousePlaybackMode: MousePlaybackMode = .background
     var recordedWindowWidth: Double?
     var recordedWindowHeight: Double?
+    var recordedWindowOriginX: Double?
+    var recordedWindowOriginY: Double?
 
     private enum CodingKeys: String, CodingKey {
         case id, name, isFavorite, targetBundleIdentifier, actions, loopMode, loopCount
-        case mousePlaybackMode, recordedWindowWidth, recordedWindowHeight
+        case mousePlaybackMode, recordedWindowWidth, recordedWindowHeight, recordedWindowOriginX, recordedWindowOriginY
     }
 
     init(
@@ -202,7 +204,9 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
         loopCount: Int = 2,
         mousePlaybackMode: MousePlaybackMode = .background,
         recordedWindowWidth: Double? = nil,
-        recordedWindowHeight: Double? = nil
+        recordedWindowHeight: Double? = nil,
+        recordedWindowOriginX: Double? = nil,
+        recordedWindowOriginY: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -214,6 +218,8 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
         self.mousePlaybackMode = mousePlaybackMode
         self.recordedWindowWidth = recordedWindowWidth
         self.recordedWindowHeight = recordedWindowHeight
+        self.recordedWindowOriginX = recordedWindowOriginX
+        self.recordedWindowOriginY = recordedWindowOriginY
     }
 
     init(from decoder: Decoder) throws {
@@ -228,12 +234,19 @@ struct MacroDefinition: Identifiable, Codable, Equatable {
         mousePlaybackMode = try values.decodeIfPresent(MousePlaybackMode.self, forKey: .mousePlaybackMode) ?? .background
         recordedWindowWidth = try values.decodeIfPresent(Double.self, forKey: .recordedWindowWidth)
         recordedWindowHeight = try values.decodeIfPresent(Double.self, forKey: .recordedWindowHeight)
+        recordedWindowOriginX = try values.decodeIfPresent(Double.self, forKey: .recordedWindowOriginX)
+        recordedWindowOriginY = try values.decodeIfPresent(Double.self, forKey: .recordedWindowOriginY)
     }
 
     var recordedWindowSize: CGSize? {
         guard let recordedWindowWidth, let recordedWindowHeight,
               recordedWindowWidth > 0, recordedWindowHeight > 0 else { return nil }
         return CGSize(width: CGFloat(recordedWindowWidth), height: CGFloat(recordedWindowHeight))
+    }
+
+    var recordedWindowOrigin: CGPoint? {
+        guard let recordedWindowOriginX, let recordedWindowOriginY else { return nil }
+        return CGPoint(x: recordedWindowOriginX, y: recordedWindowOriginY)
     }
 }
 
@@ -309,6 +322,7 @@ struct PlaybackProgress: Equatable {
 enum MousePlaybackMode: String, Codable, CaseIterable, Identifiable {
     case background
     case compatibility
+    case exactScreen
 
     var id: Self { self }
 
@@ -316,6 +330,7 @@ enum MousePlaybackMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .background: "Background"
         case .compatibility: "Compatibility"
+        case .exactScreen: "Exact Screen"
         }
     }
 
@@ -325,6 +340,8 @@ enum MousePlaybackMode: String, Codable, CaseIterable, Identifiable {
             "Keeps your cursor free. Some games, including Roblox, may ignore mouse actions."
         case .compatibility:
             "Activates the target and uses the system cursor so game mouse actions can work."
+        case .exactScreen:
+            "Replays the original screen coordinates. Keep the target visible and in the same position."
         }
     }
 }

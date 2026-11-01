@@ -69,6 +69,7 @@ extension MacroMouseButton {
 
 @MainActor
 protocol InputBackend: AnyObject {
+    var mousePlaybackMode: MousePlaybackMode { get }
     var displayName: String { get }
     var canVerifyReceipt: Bool { get }
     func keyDown(_ keyCode: CGKeyCode, target: TargetWindow) throws
@@ -78,6 +79,10 @@ protocol InputBackend: AnyObject {
     func mouseDown(_ button: MacroMouseButton, at point: CGPoint, clickCount: Int, target: TargetWindow) throws
     func mouseUp(_ button: MacroMouseButton, at point: CGPoint, clickCount: Int, target: TargetWindow) throws
     func scroll(deltaX: Double, deltaY: Double, at point: CGPoint, target: TargetWindow) throws
+}
+
+extension InputBackend {
+    var mousePlaybackMode: MousePlaybackMode { .background }
 }
 
 /// Posts keyboard events directly to the selected process. Mouse events use the
@@ -90,6 +95,7 @@ final class TargetedCGEventBackend: InputBackend {
         switch mousePlaybackMode {
         case .background: "Targeted Keyboard + Background Mouse"
         case .compatibility: "Targeted Keyboard + System Mouse"
+        case .exactScreen: "Targeted Keyboard + Exact Screen Mouse"
         }
     }
 
@@ -176,7 +182,7 @@ final class TargetedCGEventBackend: InputBackend {
         switch mousePlaybackMode {
         case .background:
             event.postToPid(target.processIdentifier)
-        case .compatibility:
+        case .compatibility, .exactScreen:
             event.post(tap: .cghidEventTap)
         }
     }

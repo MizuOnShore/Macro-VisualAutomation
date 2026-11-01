@@ -37,6 +37,7 @@ final class AppModel: ObservableObject {
     private let hotkeyManager = GlobalHotkeyManager()
     private let backgroundInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .background)
     private let compatibilityInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .compatibility)
+    private let exactScreenInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .exactScreen)
     private let hotkeyDefaultsKey = "GlobalHotkeyPreferences"
     private var persistenceTask: Task<Void, Never>?
     private var playbackPreparationID: UUID?
@@ -106,6 +107,7 @@ final class AppModel: ObservableObject {
         switch mode {
         case .background: backgroundInputBackend
         case .compatibility: compatibilityInputBackend
+        case .exactScreen: exactScreenInputBackend
         }
     }
 
@@ -340,8 +342,8 @@ final class AppModel: ObservableObject {
         }
 
         guard permissionManager.eventPostingGranted else {
-            log("Cannot start Compatibility playback: synthetic event permission is not granted", level: .error)
-            alertMessage = "Compatibility mouse playback needs macOS synthetic-event permission. Open Macro → Settings → Permissions, request Accessibility access again, then relaunch Macro."
+            log("Cannot start (mode.title) playback: synthetic event permission is not granted", level: .error)
+            alertMessage = "(mode.title) mouse playback needs macOS synthetic-event permission. Open Macro → Settings → Permissions, request Accessibility access again, then relaunch Macro."
             return
         }
 
@@ -609,7 +611,9 @@ final class AppModel: ObservableObject {
             actions: actions,
             mousePlaybackMode: mode,
             recordedWindowWidth: selectedTarget.map { Double($0.bounds.width) },
-            recordedWindowHeight: selectedTarget.map { Double($0.bounds.height) }
+            recordedWindowHeight: selectedTarget.map { Double($0.bounds.height) },
+            recordedWindowOriginX: selectedTarget.map { Double($0.bounds.minX) },
+            recordedWindowOriginY: selectedTarget.map { Double($0.bounds.minY) }
         )
         macros.append(macro)
         selectedMacroID = macro.id

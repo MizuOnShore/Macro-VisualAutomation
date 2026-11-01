@@ -96,7 +96,7 @@ enum AutomationConditionKind: String, Codable, CaseIterable, Identifiable {
 }
 
 enum MacroPlaybackOverride: String, Codable, CaseIterable, Identifiable {
-    case useMacroSetting, background, compatibility
+    case useMacroSetting, background, compatibility, exactScreen
 
     var id: Self { self }
     var title: String {
@@ -104,6 +104,7 @@ enum MacroPlaybackOverride: String, Codable, CaseIterable, Identifiable {
         case .useMacroSetting: "Use macro setting"
         case .background: "Background"
         case .compatibility: "Compatibility"
+        case .exactScreen: "Exact Screen"
         }
     }
 
@@ -112,6 +113,7 @@ enum MacroPlaybackOverride: String, Codable, CaseIterable, Identifiable {
         case .useMacroSetting: fallback
         case .background: .background
         case .compatibility: .compatibility
+        case .exactScreen: .exactScreen
         }
     }
 }

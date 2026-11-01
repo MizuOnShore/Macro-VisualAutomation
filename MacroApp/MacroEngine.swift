@@ -23,6 +23,7 @@ final class MacroEngine {
     private var heldButtons = Set<MacroMouseButton>()
     private var lastMousePoint = CGPoint.zero
     private var recordedWindowSize: CGSize?
+    private var recordedWindowOrigin: CGPoint?
     private(set) var state: RunState = .idle
     private let isAuthorized: () -> Bool
     private let targetIsRunning: (pid_t) -> Bool
@@ -40,6 +41,7 @@ final class MacroEngine {
         self.backend = backend
         self.target = target
         recordedWindowSize = macro.recordedWindowSize
+        recordedWindowOrigin = macro.recordedWindowOrigin
         setState(.running)
         log("Macro started with \(backend.displayName)")
 
@@ -230,6 +232,10 @@ final class MacroEngine {
         let point = CGPoint(x: action.x ?? 0, y: action.y ?? 0)
         if action.usesWindowCoordinates {
             let scaledPoint: CGPoint
+            if backend?.mousePlaybackMode == .exactScreen,
+               let recordedWindowOrigin {
+                return CGPoint(x: recordedWindowOrigin.x + point.x, y: recordedWindowOrigin.y + point.y)
+            }
             if let recordedWindowSize,
                recordedWindowSize.width > 0,
                recordedWindowSize.height > 0 {
