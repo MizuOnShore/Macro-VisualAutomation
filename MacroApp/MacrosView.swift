@@ -716,7 +716,7 @@ private struct MacroHeader: View {
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 200)
+            .frame(width: 280)
             .disabled(model.runState != .idle || model.recording)
             .help(macro.mousePlaybackMode.detail)
         }
