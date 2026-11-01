@@ -2,10 +2,11 @@ import AppKit
 import CoreGraphics
 
 final class MacroRecorder {
-    // Keep the recorded path dense enough for faithful drags and pointer
-    // corrections. The old 50 ms / 4 px filter visibly changed fast motion.
-    private static let moveSampleInterval: TimeInterval = 1.0 / 120.0
-    private static let moveDistanceThreshold: CGFloat = 1
+    // Keep enough samples for smooth drags without flooding the event queue.
+    // Very dense 120 Hz / 1 px traces can overwhelm playback and cause events
+    // to be dropped by the target application.
+    private static let moveSampleInterval: TimeInterval = 1.0 / 60.0
+    private static let moveDistanceThreshold: CGFloat = 2
     private struct PendingMouseDown {
         let timestamp: TimeInterval
         let coordinates: CGPoint

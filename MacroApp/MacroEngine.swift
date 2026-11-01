@@ -269,9 +269,8 @@ final class MacroEngine {
 
             let now = DispatchTime.now().uptimeNanoseconds
             guard deadline > now else { return deadline }
-            // Use short scheduling slices so dense recorded mouse paths and
-            // key transitions do not visibly drift between actions.
-            try await Task.sleep(nanoseconds: min(deadline - now, 2_000_000))
+            // Use a short scheduling slice without starving the event queue.
+            try await Task.sleep(nanoseconds: min(deadline - now, 5_000_000))
         }
     }
 
@@ -286,7 +285,7 @@ final class MacroEngine {
     private func waitWhilePaused() async throws {
         while state == .paused {
             try Task.checkCancellation()
-            try await Task.sleep(nanoseconds: 2_000_000)
+            try await Task.sleep(nanoseconds: 5_000_000)
         }
     }
 
