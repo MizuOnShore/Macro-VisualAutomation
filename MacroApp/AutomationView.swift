@@ -943,7 +943,13 @@ private struct AutomationCanvasView: View {
                        let start = loopPoint(repeatNode.id, in: automation),
                        let end = loopPoint(targetID, in: automation) {
                         let obstacles = wireObstacles(excluding: [repeatNode.id, targetID], in: automation)
-                        let wire = WorkflowConnectionShape(start: start, end: end, style: .bent, obstacles: obstacles)
+                        let wire = WorkflowConnectionShape(
+                            start: start,
+                            end: end,
+                            style: .bent,
+                            obstacles: obstacles,
+                            usesVerticalPortStubs: false
+                        )
                         wire
                             .stroke(
                                 Color.purple.opacity(0.9),
@@ -960,7 +966,13 @@ private struct AutomationCanvasView: View {
                        let start = loopPoint(loopNode.id, in: automation),
                        let end = loopPoint(targetID, in: automation) {
                         let obstacles = wireObstacles(excluding: [loopNode.id, targetID], in: automation)
-                        let wire = WorkflowConnectionShape(start: start, end: end, style: .bent, obstacles: obstacles)
+                        let wire = WorkflowConnectionShape(
+                            start: start,
+                            end: end,
+                            style: .bent,
+                            obstacles: obstacles,
+                            usesVerticalPortStubs: false
+                        )
                         wire
                             .stroke(Color.teal.opacity(0.9), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                         Image(systemName: "arrowtriangle.left.fill")
@@ -2404,16 +2416,11 @@ private struct WorkflowConnectionShape: Shape {
     var style: AutomationConnectionStyle = .curved
     var obstacles: [CGRect] = []
     var bendPoint: CGPoint? = nil
+    var usesVerticalPortStubs = true
 
     func path(in rect: CGRect) -> Path {
         if let bendPoint {
-            let first = WorkflowWireRouter.route(from: start, to: bendPoint, avoiding: obstacles)
-            let second = WorkflowWireRouter.route(from: bendPoint, to: end, avoiding: obstacles)
-            let points = first + second.dropFirst()
-            var path = Path()
-            path.move(to: points.first ?? start)
-            for point in points.dropFirst() { path.addLine(to: point) }
-            return path
+            return routedPath(through: bendPoint)
         }
         if style == .curved {
             let controlDistance = max(42, abs(end.y - start.y) * 0.45)
@@ -2432,7 +2439,43 @@ private struct WorkflowConnectionShape: Shape {
             return straight
         }
 
-        return WorkflowWireRouter.path(from: start, to: end, avoiding: obstacles)
+        return routedPath()
+    }
+
+    /// Keep an exposed vertical segment beside the visible connection handles.
+    /// Without these stubs, an orthogonal route may turn along the card edge and
+    /// the node (drawn above the wire) makes it look attached to a side instead.
+    private func routedPath(through bendPoint: CGPoint? = nil) -> Path {
+        guard usesVerticalPortStubs else {
+            if let bendPoint {
+                let first = WorkflowWireRouter.route(from: start, to: bendPoint, avoiding: obstacles)
+                let second = WorkflowWireRouter.route(from: bendPoint, to: end, avoiding: obstacles)
+                return polyline(first + second.dropFirst())
+            }
+            return WorkflowWireRouter.path(from: start, to: end, avoiding: obstacles)
+        }
+
+        let availableDistance = abs(end.y - start.y)
+        let stubLength = min(24, max(12, availableDistance * 0.16))
+        let startStub = CGPoint(x: start.x, y: start.y + stubLength)
+        let endStub = CGPoint(x: end.x, y: end.y - stubLength)
+        let middle: [CGPoint]
+        if let bendPoint {
+            let first = WorkflowWireRouter.route(from: startStub, to: bendPoint, avoiding: obstacles)
+            let second = WorkflowWireRouter.route(from: bendPoint, to: endStub, avoiding: obstacles)
+            middle = first + second.dropFirst()
+        } else {
+            middle = WorkflowWireRouter.route(from: startStub, to: endStub, avoiding: obstacles)
+        }
+        return polyline([start] + middle + [end])
+    }
+
+    private func polyline<S: Sequence>(_ points: S) -> Path where S.Element == CGPoint {
+        let points = Array(points)
+        var path = Path()
+        path.move(to: points.first ?? start)
+        for point in points.dropFirst() { path.addLine(to: point) }
+        return path
     }
 
     private func segmentIntersectsObstacles(_ from: CGPoint, _ to: CGPoint) -> Bool {
