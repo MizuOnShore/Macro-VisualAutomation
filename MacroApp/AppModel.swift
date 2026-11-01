@@ -318,7 +318,11 @@ final class AppModel: ObservableObject {
             return
         }
 
-        if availableTargets.isEmpty { refreshTargets() }
+        // Refresh immediately before playback so the target frame reflects its
+        // current position and size. Reusing a stale discovery result is a
+        // common source of offset or scaled mouse playback after a window has
+        // moved, resized, or been recreated.
+        refreshTargets()
         if selectedTarget == nil { reconnectTargetForSelectedMacro(in: availableTargets) }
         guard let target = selectedTarget else {
             log("Cannot start: select a target window", level: .error)
