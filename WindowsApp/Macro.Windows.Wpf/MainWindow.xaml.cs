@@ -1668,8 +1668,11 @@ public partial class MainWindow : Window
             ["RaisedBrush"] = colors.Raised, ["BorderBrush"] = colors.Border,
             ["AccentBrush"] = colors.Accent, ["GridBrush"] = colors.Grid
         };
+        // Brushes loaded from compiled XAML can be frozen by WPF. Replacing the
+        // resource keeps theme changes safe; DynamicResource consumers update
+        // automatically without mutating a read-only brush instance.
         foreach (var (key, hex) in values)
-            if (Resources[key] is SolidColorBrush brush) brush.Color = ParseColor(hex);
+            Resources[key] = new SolidColorBrush(ParseColor(hex));
         Background = (Brush)Resources["WindowBrush"];
         AppearanceWindowSwatch.Fill = (Brush)Resources["WindowBrush"];
         AppearancePanelSwatch.Fill = (Brush)Resources["PanelBrush"];
