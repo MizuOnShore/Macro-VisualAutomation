@@ -614,7 +614,7 @@
         <Grid x:Name="AutomationPage" Visibility="Collapsed">
           <Grid.RowDefinitions><RowDefinition Height="58"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="AutomationLibraryColumn" Width="220"/>
+            <ColumnDefinition x:Name="AutomationLibraryColumn" Width="260"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition x:Name="AutomationInspectorColumn" Width="285"/>
           </Grid.ColumnDefinitions>
@@ -638,8 +638,8 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
-              <StackPanel Grid.Row="0"><TextBlock Text="WORKFLOWS" Style="{StaticResource Section}"/><TextBox x:Name="AutomationSearch" Style="{StaticResource SearchField}" TextChanged="AutomationSearchChanged" ToolTip="Search automations and nodes"/></StackPanel>
-              <ListBox x:Name="AutomationList" Grid.Row="1" MaxHeight="150" SelectionChanged="AutomationSelected">
+              <StackPanel Grid.Row="0" Margin="0,0,0,10"><TextBlock Text="WORKFLOWS" Style="{StaticResource Section}"/><TextBox x:Name="AutomationSearch" Style="{StaticResource SearchField}" TextChanged="AutomationSearchChanged" ToolTip="Search automations and nodes"/></StackPanel>
+              <ListBox x:Name="AutomationList" Grid.Row="1" MaxHeight="170" SelectionChanged="AutomationSelected">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel>
@@ -658,10 +658,10 @@
           </Border>
           <Grid Grid.Row="1" Grid.Column="1">
             <local:WorkflowCanvas x:Name="FlowCanvas" AllowDrop="True" DragOver="FlowCanvasDragOver" Drop="FlowCanvasDrop"/>
-            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="10" Padding="7" Margin="12">
-              <StackPanel Orientation="Horizontal"><TextBox x:Name="CanvasSearch" Style="{StaticResource SearchField}" Width="145" Height="30" TextChanged="CanvasSearchChanged" ToolTip="Find node"/><Button Click="CanvasZoomOut" Padding="8,5" Margin="6,0,0,0">−</Button><TextBlock x:Name="CanvasZoomText" Text="100%" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="7,0"/><Button Click="CanvasZoomIn" Padding="8,5">+</Button><Button Click="FitWorkflow" Padding="8,5" Margin="6,0,0,0">⌖</Button></StackPanel>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="12" Padding="9" Margin="14">
+              <StackPanel Orientation="Horizontal"><TextBox x:Name="CanvasSearch" Style="{StaticResource SearchField}" Width="170" Height="34" TextChanged="CanvasSearchChanged" ToolTip="Find node"/><Button Click="CanvasZoomOut" MinWidth="36" MinHeight="34" Padding="9,6" Margin="7,0,0,0">−</Button><TextBlock x:Name="CanvasZoomText" Text="100%" Foreground="{StaticResource SecondaryBrush}" VerticalAlignment="Center" Margin="9,0"/><Button Click="CanvasZoomIn" MinWidth="36" MinHeight="34" Padding="9,6">+</Button><Button Click="FitWorkflow" MinWidth="36" MinHeight="34" Padding="9,6" Margin="7,0,0,0">⌖</Button></StackPanel>
             </Border>
-            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="11" Padding="6" Margin="12"><StackPanel Orientation="Horizontal"><Button x:Name="CanvasSelectButton" Padding="9,6" ToolTip="Select and connect nodes" Click="CanvasSelectTool">↖</Button><Button x:Name="CanvasPanButton" Padding="9,6" ToolTip="Pan canvas" Click="CanvasPanTool">☝</Button><Button Padding="9,6" ToolTip="Fit" Click="FitWorkflow">⌗</Button><Button Padding="9,6" ToolTip="Reset zoom" Click="CanvasResetZoom">↗</Button></StackPanel></Border>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Background="#E60A2032" BorderBrush="#285574" BorderThickness="1" CornerRadius="13" Padding="8" Margin="16"><StackPanel Orientation="Horizontal"><Button x:Name="CanvasSelectButton" MinWidth="44" MinHeight="40" Padding="11,8" FontSize="15" ToolTip="Select nodes · drag empty canvas for marquee selection" Click="CanvasSelectTool">↖</Button><Button x:Name="CanvasPanButton" MinWidth="44" MinHeight="40" Padding="11,8" FontSize="15" Margin="4,0,0,0" ToolTip="Pan canvas" Click="CanvasPanTool">☝</Button><Button MinWidth="44" MinHeight="40" Padding="11,8" FontSize="15" Margin="4,0,0,0" ToolTip="Fit workflow" Click="FitWorkflow">⌗</Button><Button MinWidth="44" MinHeight="40" Padding="11,8" FontSize="15" Margin="4,0,0,0" ToolTip="Reset zoom" Click="CanvasResetZoom">↗</Button></StackPanel></Border>
           </Grid>
           <Border x:Name="AutomationInspectorPanel" Grid.Row="1" Grid.Column="2" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0" Padding="14">
             <ScrollViewer>

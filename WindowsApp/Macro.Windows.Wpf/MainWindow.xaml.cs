@@ -291,7 +291,7 @@ public partial class MainWindow : Window
         Grid.SetColumnSpan(MacroPlaybackLabel, compact ? 2 : 1);
         MacroPlaybackSegments.Margin = compact ? new Thickness(0, 7, 0, 0) : new Thickness(0);
         TargetLibraryColumn.Width = new GridLength(compact ? 300 : 350);
-        AutomationLibraryColumn.Width = new GridLength(automationLibraryOpen ? compact ? 195 : 220 : 0);
+        AutomationLibraryColumn.Width = new GridLength(automationLibraryOpen ? compact ? 220 : 260 : 0);
         AutomationInspectorColumn.Width = new GridLength(automationInspectorOpen ? compact ? 250 : 285 : 0);
     }
 
@@ -1103,7 +1103,7 @@ public partial class MainWindow : Window
         {
             Kind = kind,
             Position = canvasPoint is { } point
-                ? new WorkflowPoint { X = Math.Max(0, point.X - 110), Y = Math.Max(0, point.Y - 38) }
+                ? new WorkflowPoint { X = point.X - 110, Y = point.Y - 38 }
                 : new WorkflowPoint { X = 280 + (automation.Nodes.Count % 4) * 205, Y = 110 + (automation.Nodes.Count / 4) * 120 }
         };
         if (kind == AutomationNodeKind.Macro) node.MacroID = (tag as MacroDefinition)?.Id ?? SelectedMacro?.Id ?? macros.FirstOrDefault()?.Id;
@@ -1500,6 +1500,7 @@ public partial class MainWindow : Window
     private void SetCanvasTool(bool pan)
     {
         FlowCanvas.PanToolActive = pan;
+        FlowCanvas.Focus();
         FlowCanvas.Cursor = pan ? Cursors.Hand : Cursors.Arrow;
         CanvasSelectButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pan ? "#121F2D" : "#164A7D"));
         CanvasPanButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(pan ? "#164A7D" : "#121F2D"));

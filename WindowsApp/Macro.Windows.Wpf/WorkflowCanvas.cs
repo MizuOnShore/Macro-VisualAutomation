@@ -11,12 +11,14 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private readonly Typeface normal = new("Segoe UI"), semibold = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
     private AutomationDefinition? workflow;
     private Guid? selectedNodeId, activeNodeId, draggingNodeId;
+    private readonly HashSet<Guid> selectedNodeIds = [];
+    private readonly Dictionary<Guid, Point> dragNodeOrigins = [];
     private AutomationNode? connectingSource;
     private AutomationBranch? connectingBranch;
     private Point connectionPointer;
-    private Point dragOrigin, panOrigin;
+    private Point dragPointerOrigin, panOrigin, marqueeStart, marqueeCurrent;
     private double? alignmentGuideX, alignmentGuideY;
-    private bool panning;
+    private bool panning, marqueeSelecting;
     private bool fitOnResize = true;
     public bool PanToolActive { get; set; }
     private Vector pan = new(70, 50);
@@ -30,8 +32,18 @@ internal sealed class WorkflowCanvas : FrameworkElement
     public Color CanvasColor { get; set; } = C("07111C");
     public Color GridColor { get; set; } = C("406384");
 
-    public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; alignmentGuideX = alignmentGuideY = null; Fit(); InvalidateVisual(); } }
-    public Guid? SelectedNodeId { get => selectedNodeId; set { selectedNodeId = value; InvalidateVisual(); } }
+    public AutomationDefinition? Workflow { get => workflow; set { workflow = value; selectedNodeId = null; selectedNodeIds.Clear(); alignmentGuideX = alignmentGuideY = null; Fit(); InvalidateVisual(); } }
+    public Guid? SelectedNodeId
+    {
+        get => selectedNodeId;
+        set
+        {
+            // NodeSelected is echoed through MainWindow.SelectNode. Preserve an
+            // existing marquee selection when that echo names its active node.
+            if (value == selectedNodeId && value is { } current && selectedNodeIds.Contains(current)) { InvalidateVisual(); return; }
+            selectedNodeId = value; selectedNodeIds.Clear(); if (value is { } id) selectedNodeIds.Add(id); InvalidateVisual();
+        }
+    }
     public Guid? ActiveNodeId { get => activeNodeId; set { activeNodeId = value; InvalidateVisual(); } }
     public double Zoom => zoom;
     public Point GetLogicalPoint(Point point) => Logical(point);
@@ -94,6 +106,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
         if (connectingSource is not null) DrawConnectionPreview(dc);
         foreach (var node in workflow.Nodes) DrawNode(dc, node);
         DrawAlignmentGuides(dc);
+        DrawMarquee(dc);
         dc.Pop(); dc.Pop();
     }
 
@@ -215,7 +228,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
     private void DrawNode(DrawingContext dc, AutomationNode node)
     {
         dc.PushOpacity(node.IsEnabled ? 1 : .45);
-        var r = Rect(node); var selected = node.Id == selectedNodeId; var active = node.Id == activeNodeId;
+        var r = Rect(node); var selected = selectedNodeIds.Contains(node.Id) || node.Id == selectedNodeId; var active = node.Id == activeNodeId;
         var accent = KindColor(node.Kind);
         var baseColor = node.Kind switch { AutomationNodeKind.Start => C("102E29"), AutomationNodeKind.Stop => C("29202D"), AutomationNodeKind.RepeatFlow => C("1D2943"), _ => C("102B40") };
         var fill = new SolidColorBrush(active ? C("0D392A") : selected ? C("173C59") : baseColor);
@@ -240,11 +253,19 @@ internal sealed class WorkflowCanvas : FrameworkElement
 
     private void DrawAlignmentGuides(DrawingContext dc)
     {
+        if (draggingNodeId is null) return;
         var pen = new Pen(new SolidColorBrush(C("1785FF")), Math.Max(.75, 1 / zoom));
         var left = -pan.X / zoom; var right = (ActualWidth - pan.X) / zoom;
         var top = -pan.Y / zoom; var bottom = (ActualHeight - pan.Y) / zoom;
         if (alignmentGuideX is double x) dc.DrawLine(pen, new Point(x, top), new Point(x, bottom));
         if (alignmentGuideY is double y) dc.DrawLine(pen, new Point(left, y), new Point(right, y));
+    }
+    private void DrawMarquee(DrawingContext dc)
+    {
+        if (!marqueeSelecting) return;
+        var rect = NormalizedRect(marqueeStart, marqueeCurrent);
+        var pen = new Pen(new SolidColorBrush(C("4C9CFF")), 1.2 / zoom) { DashStyle = DashStyles.Dash };
+        dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(35, 76, 156, 255)), pen, rect);
     }
     private void DrawConnectionPreview(DrawingContext dc)
     {
@@ -278,6 +299,7 @@ internal sealed class WorkflowCanvas : FrameworkElement
             if (contextNode is not null)
             {
                 selectedNodeId = contextNode.Id;
+                selectedNodeIds.Clear(); selectedNodeIds.Add(contextNode.Id);
                 NodeSelected?.Invoke(contextNode);
                 NodeContextRequested?.Invoke(contextNode);
                 InvalidateVisual();
@@ -293,21 +315,49 @@ internal sealed class WorkflowCanvas : FrameworkElement
         {
             if (!TryOutput(candidate, logical, out var branch)) continue;
             connectingSource = candidate; connectingBranch = branch; connectionPointer = logical;
-            selectedNodeId = candidate.Id; NodeSelected?.Invoke(candidate); InvalidateVisual(); e.Handled = true; return;
+            selectedNodeId = candidate.Id; selectedNodeIds.Clear(); selectedNodeIds.Add(candidate.Id); NodeSelected?.Invoke(candidate); InvalidateVisual(); e.Handled = true; return;
         }
-        var node = workflow.Nodes.LastOrDefault(n => Rect(n).Contains(logical)); selectedNodeId = node?.Id; NodeSelected?.Invoke(node); InvalidateVisual();
-        if (node is not null) { draggingNodeId = node.Id; dragOrigin = new(logical.X - node.Position.X, logical.Y - node.Position.Y); }
+        var node = workflow.Nodes.LastOrDefault(n => Rect(n).Contains(logical));
+        if (node is null)
+        {
+            selectedNodeId = null; selectedNodeIds.Clear(); NodeSelected?.Invoke(null);
+            marqueeSelecting = true; marqueeStart = marqueeCurrent = logical;
+            InvalidateVisual(); e.Handled = true; return;
+        }
+        var additive = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        if (additive)
+        {
+            if (!selectedNodeIds.Add(node.Id)) selectedNodeIds.Remove(node.Id);
+            if (!selectedNodeIds.Contains(node.Id)) { selectedNodeId = selectedNodeIds.Count > 0 ? selectedNodeIds.Last() : null; NodeSelected?.Invoke(workflow.Nodes.FirstOrDefault(n => n.Id == selectedNodeId)); InvalidateVisual(); return; }
+        }
+        else if (!selectedNodeIds.Contains(node.Id)) { selectedNodeIds.Clear(); selectedNodeIds.Add(node.Id); }
+        selectedNodeId = node.Id; NodeSelected?.Invoke(node); InvalidateVisual();
+        draggingNodeId = node.Id; dragPointerOrigin = logical;
+        dragNodeOrigins.Clear();
+        foreach (var selected in workflow.Nodes.Where(n => selectedNodeIds.Contains(n.Id))) dragNodeOrigins[selected.Id] = new Point(selected.Position.X, selected.Position.Y);
     }
     protected override void OnMouseMove(MouseEventArgs e)
     {
         var p = e.GetPosition(this);
         if (panning && (e.MiddleButton == MouseButtonState.Pressed || e.RightButton == MouseButtonState.Pressed || PanToolActive && e.LeftButton == MouseButtonState.Pressed)) { pan += p - panOrigin; panOrigin = p; InvalidateVisual(); return; }
         if (connectingSource is not null && e.LeftButton == MouseButtonState.Pressed) { connectionPointer = Logical(p); InvalidateVisual(); return; }
+        if (marqueeSelecting && e.LeftButton == MouseButtonState.Pressed && workflow is not null)
+        {
+            marqueeCurrent = Logical(p);
+            var marquee = NormalizedRect(marqueeStart, marqueeCurrent);
+            selectedNodeIds.Clear();
+            foreach (var node in workflow.Nodes.Where(node => marquee.IntersectsWith(Rect(node)))) selectedNodeIds.Add(node.Id);
+            InvalidateVisual(); return;
+        }
         if (draggingNodeId is null || e.LeftButton != MouseButtonState.Pressed || workflow is null) return;
-        var q = Logical(p); var node = workflow.Nodes.First(n => n.Id == draggingNodeId);
-        var proposed = new Point(Math.Max(0, q.X - dragOrigin.X), Math.Max(0, q.Y - dragOrigin.Y));
-        var snapped = SnapNode(node, proposed);
-        node.Position.X = snapped.X; node.Position.Y = snapped.Y; InvalidateVisual();
+        var delta = Logical(p) - dragPointerOrigin;
+        var snappedDelta = SnapSelection(delta);
+        foreach (var node in workflow.Nodes.Where(n => dragNodeOrigins.ContainsKey(n.Id)))
+        {
+            var origin = dragNodeOrigins[node.Id];
+            node.Position.X = origin.X + snappedDelta.X; node.Position.Y = origin.Y + snappedDelta.Y;
+        }
+        InvalidateVisual();
     }
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
@@ -318,8 +368,13 @@ internal sealed class WorkflowCanvas : FrameworkElement
             connectingSource = null; connectingBranch = null; InvalidateVisual();
         }
         if (draggingNodeId is not null) WorkflowChanged?.Invoke();
+        if (marqueeSelecting && workflow is not null)
+        {
+            selectedNodeId = selectedNodeIds.Count > 0 ? selectedNodeIds.Last() : null;
+            NodeSelected?.Invoke(workflow.Nodes.FirstOrDefault(node => node.Id == selectedNodeId));
+        }
         alignmentGuideX = alignmentGuideY = null;
-        draggingNodeId = null; panning = false; ReleaseMouseCapture();
+        draggingNodeId = null; dragNodeOrigins.Clear(); marqueeSelecting = false; panning = false; ReleaseMouseCapture(); InvalidateVisual();
     }
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
@@ -339,20 +394,53 @@ internal sealed class WorkflowCanvas : FrameworkElement
         return (point - OutputPoint(node, null)).Length <= 14;
     }
 
-    private Point SnapNode(AutomationNode movingNode, Point proposed)
+    private Vector SnapSelection(Vector proposedDelta)
     {
         alignmentGuideX = alignmentGuideY = null;
-        if (workflow is null || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return proposed;
-        var others = workflow.Nodes.Where(node => node.Id != movingNode.Id).Select(Rect).ToList();
-        if (others.Count == 0) return proposed;
+        if (workflow is null || dragNodeOrigins.Count == 0 || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return proposedDelta;
+        var movingRects = workflow.Nodes.Where(node => dragNodeOrigins.ContainsKey(node.Id)).Select(node =>
+        {
+            var origin = dragNodeOrigins[node.Id];
+            return new Rect(origin.X + proposedDelta.X, origin.Y + proposedDelta.Y, NodeWidth, NodeHeight);
+        }).ToList();
+        var others = workflow.Nodes.Where(node => !dragNodeOrigins.ContainsKey(node.Id)).Select(Rect).ToList();
+        if (others.Count == 0) return proposedDelta;
         var threshold = 8 / Math.Max(.25, zoom);
-        var movingX = new[] { proposed.X, proposed.X + NodeWidth / 2, proposed.X + NodeWidth };
-        var movingY = new[] { proposed.Y, proposed.Y + NodeHeight / 2, proposed.Y + NodeHeight };
+        var movingX = movingRects.SelectMany(rect => new[] { rect.Left, rect.Left + rect.Width / 2, rect.Right });
+        var movingY = movingRects.SelectMany(rect => new[] { rect.Top, rect.Top + rect.Height / 2, rect.Bottom });
         var xSnap = ClosestSnap(movingX, others.SelectMany(rect => new[] { rect.Left, rect.Left + rect.Width / 2, rect.Right }), threshold);
         var ySnap = ClosestSnap(movingY, others.SelectMany(rect => new[] { rect.Top, rect.Top + rect.Height / 2, rect.Bottom }), threshold);
         alignmentGuideX = xSnap?.Guide; alignmentGuideY = ySnap?.Guide;
-        return new Point(Math.Max(0, proposed.X + (xSnap?.Adjustment ?? 0)), Math.Max(0, proposed.Y + (ySnap?.Adjustment ?? 0)));
+        return new Vector(proposedDelta.X + (xSnap?.Adjustment ?? 0), proposedDelta.Y + (ySnap?.Adjustment ?? 0));
     }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key != Key.Delete && e.Key != Key.Back || workflow is null || selectedNodeIds.Count == 0) return;
+        var removable = selectedNodeIds.Where(id => workflow.Nodes.Any(node => node.Id == id && node.Kind != AutomationNodeKind.Start)).ToHashSet();
+        if (removable.Count == 0) return;
+        workflow.Nodes.RemoveAll(node => removable.Contains(node.Id));
+        workflow.Connections.RemoveAll(link => removable.Contains(link.SourceNodeID) || removable.Contains(link.TargetNodeID));
+        foreach (var node in workflow.Nodes)
+        {
+            if (node.RepeatTargetNodeID is { } repeat && removable.Contains(repeat)) node.RepeatTargetNodeID = null;
+            if (node.JumpTargetNodeID is { } jump && removable.Contains(jump)) node.JumpTargetNodeID = null;
+        }
+        selectedNodeIds.Clear(); selectedNodeId = null; NodeSelected?.Invoke(null); WorkflowChanged?.Invoke(); InvalidateVisual(); e.Handled = true;
+    }
+
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        alignmentGuideX = alignmentGuideY = null;
+        if (Mouse.LeftButton != MouseButtonState.Pressed)
+        {
+            draggingNodeId = null; dragNodeOrigins.Clear(); marqueeSelecting = false; panning = false; InvalidateVisual();
+        }
+    }
+
+    private static Rect NormalizedRect(Point a, Point b) => new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
 
     private static (double Adjustment, double Guide)? ClosestSnap(IEnumerable<double> moving, IEnumerable<double> targets, double threshold)
     {
