@@ -2,184 +2,253 @@ import AppKit
 import CoreGraphics
 
 final class MacroRecorder {
-    // Keep enough samples for smooth drags without flooding the event queue.
-    // Very dense 120 Hz / 1 px traces can overwhelm playback and cause events
-    // to be dropped by the target application.
-    private static let moveSampleInterval: TimeInterval = 1.0 / 60.0
-    private static let moveDistanceThreshold: CGFloat = 2
-    private struct PendingMouseDown {
-        let timestamp: TimeInterval
-        let coordinates: CGPoint
-        let delay: TimeInterval
-        let clickCount: Int
+    // Preserve every button and key transition. Movement is bounded to a
+    // practical rate so playback can keep up with the event stream.
+    private static let moveSampleInterval: TimeInterval = 1.0 / 120.0
+    private static let moveDistanceThreshold: CGFloat = 1
+    private struct PendingMove {
+        var action: MacroAction
+        var timestamp: TimeInterval
     }
-
-    private var monitors: [Any] = []
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
     private var actions: [MacroAction] = []
     private var lastEventTime: TimeInterval?
+    private var lastCountNotificationTime: TimeInterval = 0
     private var target: TargetWindow?
     private var lastMoveTime: TimeInterval = 0
     private var lastMovePoint = CGPoint(x: -10_000, y: -10_000)
+    private var pendingMove: PendingMove?
     private var excludedHotkeys: [HotkeyShortcut] = []
-    private var pendingMouseDown: [MacroMouseButton: PendingMouseDown] = [:]
     private var heldModifierCodes = Set<UInt16>()
+    private var recordedHeldKeys = Set<UInt16>()
+    private var recordedHeldButtons = Set<MacroMouseButton>()
+    private var lastHoverCheckAt: TimeInterval = 0
+    private var lastHoverWindowID: TargetWindow.ID?
+    private var currentCaptureWindow: TargetWindow?
+    private var lastCaptureWindowRefreshAt: TimeInterval = 0
+    private let targetManager = TargetManager()
 
-    var isRecording: Bool { !monitors.isEmpty }
+    var isRecording: Bool { eventTap != nil }
     var actionCount: Int { actions.count }
+    var recordedTarget: TargetWindow? { target }
     var onActionCountChange: ((Int) -> Void)?
 
     func start(target: TargetWindow?, excluding hotkeys: [HotkeyShortcut] = []) throws {
         guard CGPreflightListenEventAccess() else { throw InputBackendError.unsupported("Input Monitoring permission is required for recording.") }
-        guard monitors.isEmpty else { return }
+        guard !isRecording else { return }
 
         self.target = target
         excludedHotkeys = hotkeys
         actions = []
         lastEventTime = nil
         lastMoveTime = 0
-        pendingMouseDown.removeAll()
+        lastMovePoint = CGPoint(x: -10_000, y: -10_000)
+        pendingMove = nil
+        lastCountNotificationTime = 0
         heldModifierCodes.removeAll()
+        recordedHeldKeys.removeAll()
+        recordedHeldButtons.removeAll()
+        lastHoverCheckAt = 0
+        lastHoverWindowID = nil
+        currentCaptureWindow = target
+        lastCaptureWindowRefreshAt = 0
+        ClickDiagnostics.log("stage=recording_start selectedPID=\(target?.processIdentifier ?? -1) selectedWindow=\(target?.id ?? -1) selectedFrame=\(String(describing: target?.bounds))")
 
-        let eventTypes: NSEvent.EventTypeMask = [
-            .keyDown, .keyUp, .flagsChanged,
-            .leftMouseDown, .leftMouseUp, .leftMouseDragged,
-            .rightMouseDown, .rightMouseUp, .rightMouseDragged,
-            .otherMouseDown, .otherMouseUp, .otherMouseDragged,
-            .mouseMoved, .scrollWheel
+        let eventTypes: [CGEventType] = [
+            .keyDown, .keyUp, .flagsChanged, .leftMouseDown, .leftMouseUp,
+            .leftMouseDragged, .rightMouseDown, .rightMouseUp, .rightMouseDragged,
+            .otherMouseDown, .otherMouseUp, .otherMouseDragged, .mouseMoved,
+            .scrollWheel
         ]
-
-        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: eventTypes, handler: { [weak self] event in
-            guard let self, self.isRecording else { return }
-            self.record(event)
-        }) {
-            monitors.append(monitor)
+        let eventMask = eventTypes.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
+        let callback: CGEventTapCallBack = { _, type, event, userInfo in
+            guard let userInfo else { return Unmanaged.passUnretained(event) }
+            let recorder = Unmanaged<MacroRecorder>.fromOpaque(userInfo).takeUnretainedValue()
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = recorder.eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
+            } else {
+                recorder.record(event)
+            }
+            return Unmanaged.passUnretained(event)
         }
-
-        guard !monitors.isEmpty else {
-            throw InputBackendError.unsupported("macOS did not allow the global recording monitor.")
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: eventMask,
+            callback: callback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ), let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+            throw InputBackendError.unsupported("macOS did not allow the input recording tap. Check Input Monitoring permission and relaunch Macro.")
         }
+        eventTap = tap
+        runLoopSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
     }
 
     func stop() -> [MacroAction] {
-        // Global NSEvent monitor callbacks arrive on the main thread and record
-        // synchronously, so every event observed before Stop is already committed.
-        monitors.forEach(NSEvent.removeMonitor)
-        monitors.removeAll()
+        if let runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        }
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+        }
+        runLoopSource = nil
+        eventTap = nil
+        flushPendingMove()
         let result = actions
         actions = []
         excludedHotkeys = []
-        pendingMouseDown.removeAll()
         heldModifierCodes.removeAll()
+        recordedHeldKeys.removeAll()
+        recordedHeldButtons.removeAll()
+        currentCaptureWindow = nil
+        pendingMove = nil
         lastEventTime = nil
         onActionCountChange?(0)
         return result
     }
 
-    private func record(_ event: NSEvent) {
+    private func record(_ event: CGEvent) {
         guard isRecording else { return }
+        // The session tap sees Macro's own HUD and Stop button too. Never put
+        // those controls into the recording, especially a dangling mouse down.
+        let destinationPID = pid_t(event.getIntegerValueField(.eventTargetUnixProcessID))
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        if destinationPID == ownPID || (destinationPID == 0 && NSApp.isActive) {
+            return
+        }
         if excludedHotkeys.contains(where: { $0.matches(event) }) { return }
-        if event.type == .keyDown && (event.isARepeat || event.keyCode == 53) { return }
-        if event.type == .keyUp && event.keyCode == 53 { return }
-
-        let now = event.timestamp
+        let now = event.timestamp == 0
+            ? ProcessInfo.processInfo.systemUptime
+            : TimeInterval(event.timestamp) / 1_000_000_000
+        let isMove = switch event.type {
+        case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged: true
+        default: false
+        }
+        let isClick = switch event.type {
+        case .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
+             .otherMouseDown, .otherMouseUp: true
+        default: false
+        }
+        let point = event.location
+        let currentWindow = captureWindow(for: event.type, at: now)
+        if isClick {
+            ClickDiagnostics.log("stage=record_candidate type=\(event.type.rawValue) eventTimeSec=\(now) screen=\(point) destinationPID=\(destinationPID) selectedPID=\(target?.processIdentifier ?? -1) selectedWindow=\(target?.id ?? -1) currentWindow=\(currentWindow?.id ?? -1) frame=\(String(describing: currentWindow?.bounds))")
+        }
+        if target != nil && currentWindow == nil {
+            if isClick { ClickDiagnostics.log("stage=record_rejected reason=selectedWindowUnavailable type=\(event.type.rawValue) screen=\(point)") }
+            return
+        }
+        guard shouldCapture(event, destinationPID: destinationPID, point: point, at: now,
+                            currentWindow: currentWindow) else {
+            if isClick { ClickDiagnostics.log("stage=record_rejected reason=targetProvenance type=\(event.type.rawValue) screen=\(point) destinationPID=\(destinationPID)") }
+            return
+        }
+        if !isMove { flushPendingMove() }
         let delay = delaySinceLastEvent(at: now)
-        let point = event.cgEvent?.location ?? .zero
-        let coordinates = recordedCoordinates(for: point)
+        let coordinates = recordedCoordinates(for: point, currentWindow: currentWindow)
         let action: MacroAction?
 
         switch event.type {
         case .keyDown:
-            action = MacroAction(type: .keyDown, key: KeyCodeMapper.name(for: event.keyCode), duration: 0, delay: delay)
+            let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            guard keyCode != 53 else { return }
+            action = MacroAction(
+                type: .keyDown,
+                key: KeyCodeMapper.name(for: keyCode),
+                duration: 0,
+                delay: delay,
+                isKeyRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+            )
         case .keyUp:
-            action = MacroAction(type: .keyUp, key: KeyCodeMapper.name(for: event.keyCode), duration: 0, delay: delay)
+            let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            guard keyCode != 53 else { return }
+            action = MacroAction(type: .keyUp, key: KeyCodeMapper.name(for: keyCode), duration: 0, delay: delay)
         case .flagsChanged:
-            guard let flag = modifierFlag(for: event.keyCode) else { return }
-            let isDown = event.modifierFlags.contains(flag)
-            let wasDown = heldModifierCodes.contains(event.keyCode)
+            let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            guard let flag = modifierFlag(for: keyCode) else { return }
+            let wasDown = heldModifierCodes.contains(keyCode)
+            // CGEventFlags reports the combined modifier state. If both Shift
+            // keys are held, releasing one still leaves maskShift set, so use
+            // the physical key transition to preserve left/right key order.
+            let isDown = keyCode == 57 ? event.flags.contains(flag) : !wasDown && event.flags.contains(flag)
             guard isDown != wasDown else { return }
             if isDown {
-                heldModifierCodes.insert(event.keyCode)
+                heldModifierCodes.insert(keyCode)
             } else {
                 guard wasDown else { return }
-                heldModifierCodes.remove(event.keyCode)
+                heldModifierCodes.remove(keyCode)
             }
             action = MacroAction(
                 type: isDown ? .keyDown : .keyUp,
-                key: KeyCodeMapper.name(for: event.keyCode),
+                key: KeyCodeMapper.name(for: keyCode),
                 duration: 0,
                 delay: delay
             )
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             guard let button = mouseButton(for: event) else { return }
-            pendingMouseDown[button] = PendingMouseDown(
-                timestamp: now,
-                coordinates: coordinates,
+            action = MacroAction(
+                type: .mouseDown,
+                key: nil,
+                duration: 0,
                 delay: delay,
-                clickCount: max(1, event.clickCount)
+                x: coordinates.x,
+                y: coordinates.y,
+                recordedScreenX: point.x,
+                recordedScreenY: point.y,
+                mouseButton: button,
+                clickCount: max(1, Int(event.getIntegerValueField(.mouseEventClickState))),
+                usesWindowCoordinates: target != nil
             )
-            return
         case .leftMouseUp, .rightMouseUp, .otherMouseUp:
             guard let button = mouseButton(for: event) else { return }
-            if let pending = pendingMouseDown.removeValue(forKey: button) {
-                action = MacroAction(
-                    type: clickActionType(for: button),
-                    key: nil,
-                    duration: max(0.01, now - pending.timestamp),
-                    delay: pending.delay,
-                    x: pending.coordinates.x,
-                    y: pending.coordinates.y,
-                    mouseButton: button,
-                    clickCount: pending.clickCount,
-                    usesWindowCoordinates: target != nil
-                )
-            } else {
-                action = MacroAction(
-                    type: .mouseUp,
-                    key: nil,
-                    duration: 0,
-                    delay: delay,
-                    x: coordinates.x,
-                    y: coordinates.y,
-                    mouseButton: button,
-                    clickCount: max(1, event.clickCount),
-                    usesWindowCoordinates: target != nil
-                )
-            }
+            action = MacroAction(
+                type: .mouseUp,
+                key: nil,
+                duration: 0,
+                delay: delay,
+                x: coordinates.x,
+                y: coordinates.y,
+                recordedScreenX: point.x,
+                recordedScreenY: point.y,
+                mouseButton: button,
+                clickCount: max(1, Int(event.getIntegerValueField(.mouseEventClickState))),
+                usesWindowCoordinates: target != nil
+            )
         case .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
             guard let button = mouseButton(for: event) else { return }
-            if let pending = pendingMouseDown.removeValue(forKey: button) {
-                append(
-                    MacroAction(
-                        type: .mouseDown,
-                        key: nil,
-                        duration: 0,
-                        delay: pending.delay,
-                        x: pending.coordinates.x,
-                        y: pending.coordinates.y,
-                        mouseButton: button,
-                        clickCount: pending.clickCount,
-                        usesWindowCoordinates: target != nil
-                    ),
-                    at: pending.timestamp
-                )
-            }
-            guard shouldRecordMove(at: point, time: now) else { return }
             action = MacroAction(
                 type: .move,
                 key: nil,
                 duration: 0,
-                delay: delaySinceLastEvent(at: now),
+                delay: delay,
                 x: coordinates.x,
                 y: coordinates.y,
+                recordedScreenX: point.x,
+                recordedScreenY: point.y,
                 mouseButton: button,
                 usesWindowCoordinates: target != nil
             )
         case .mouseMoved:
-            guard shouldRecordMove(at: point, time: now) else { return }
-            action = MacroAction(type: .move, key: nil, duration: 0, delay: delay, x: coordinates.x, y: coordinates.y, usesWindowCoordinates: target != nil)
+            action = MacroAction(
+                type: .move, key: nil, duration: 0, delay: delay,
+                x: coordinates.x, y: coordinates.y,
+                recordedScreenX: point.x, recordedScreenY: point.y,
+                usesWindowCoordinates: target != nil
+            )
         case .scrollWheel:
-            let deltaX = event.scrollingDeltaX
-            let deltaY = event.scrollingDeltaY
+            let pointX = Double(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis2))
+            let pointY = Double(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1))
+            let lineX = Double(event.getIntegerValueField(.scrollWheelEventDeltaAxis2))
+            let lineY = Double(event.getIntegerValueField(.scrollWheelEventDeltaAxis1))
+            let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+            let unit: MacroScrollUnit = isContinuous || (lineX == 0 && lineY == 0) ? .pixel : .line
+            let deltaX = unit == .pixel ? pointX : lineX
+            let deltaY = unit == .pixel ? pointY : lineY
             guard deltaX != 0 || deltaY != 0 else { return }
             action = MacroAction(
                 type: .scroll,
@@ -188,8 +257,11 @@ final class MacroRecorder {
                 delay: delay,
                 x: coordinates.x,
                 y: coordinates.y,
+                recordedScreenX: point.x,
+                recordedScreenY: point.y,
                 scrollDeltaX: deltaX,
                 scrollDeltaY: deltaY,
+                scrollUnit: unit,
                 usesWindowCoordinates: target != nil
             )
         default:
@@ -197,27 +269,47 @@ final class MacroRecorder {
         }
 
         if let action {
-            append(action, at: now)
+            switch event.type {
+            case .keyDown:
+                recordedHeldKeys.insert(UInt16(event.getIntegerValueField(.keyboardEventKeycode)))
+            case .keyUp:
+                recordedHeldKeys.remove(UInt16(event.getIntegerValueField(.keyboardEventKeycode)))
+            case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+                if let button = mouseButton(for: event) { recordedHeldButtons.insert(button) }
+            case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+                if let button = mouseButton(for: event) { recordedHeldButtons.remove(button) }
+            default: break
+            }
+            if isMove {
+                if shouldRecordMove(at: point, time: now) {
+                    pendingMove = nil
+                    append(action, at: now)
+                } else if point != lastMovePoint {
+                    pendingMove = PendingMove(action: action, timestamp: now)
+                }
+            } else {
+                append(action, at: now)
+            }
         }
     }
 
+    private func flushPendingMove() {
+        guard var pendingMove else { return }
+        self.pendingMove = nil
+        pendingMove.action.delay = delaySinceLastEvent(at: pendingMove.timestamp)
+        append(pendingMove.action, at: pendingMove.timestamp)
+    }
+
     private func append(_ action: MacroAction, at timestamp: TimeInterval) {
-        if action.type == .scroll,
-           action.delay <= 0.06,
-           var previous = actions.last,
-           previous.type == .scroll,
-           previous.usesWindowCoordinates == action.usesWindowCoordinates {
-            previous.scrollDeltaX += action.scrollDeltaX
-            previous.scrollDeltaY += action.scrollDeltaY
-            previous.x = action.x
-            previous.y = action.y
-            actions[actions.count - 1] = previous
-            lastEventTime = timestamp
-            return
-        }
         actions.append(action)
+        if action.type == .mouseDown || action.type == .mouseUp {
+            ClickDiagnostics.log("stage=record_saved index=\(actions.count - 1) actionID=\(action.id) type=\(action.type.rawValue) eventTimeSec=\(timestamp) delaySec=\(action.delay) screen=(\(action.recordedScreenX ?? .nan),\(action.recordedScreenY ?? .nan)) relative=(\(action.x ?? .nan),\(action.y ?? .nan)) selectedPID=\(target?.processIdentifier ?? -1) selectedWindow=\(target?.id ?? -1) currentWindow=\(currentCaptureWindow?.id ?? -1) frame=\(String(describing: currentCaptureWindow?.bounds)) recordedFrame=\(String(describing: target?.bounds))")
+        }
         lastEventTime = timestamp
-        onActionCountChange?(actions.count)
+        if timestamp - lastCountNotificationTime >= 0.1 {
+            lastCountNotificationTime = timestamp
+            onActionCountChange?(actions.count)
+        }
     }
 
     private func delaySinceLastEvent(at timestamp: TimeInterval) -> TimeInterval {
@@ -232,7 +324,7 @@ final class MacroRecorder {
         return true
     }
 
-    private func mouseButton(for event: NSEvent) -> MacroMouseButton? {
+    private func mouseButton(for event: CGEvent) -> MacroMouseButton? {
         switch event.type {
         case .leftMouseDown, .leftMouseUp, .leftMouseDragged: .left
         case .rightMouseDown, .rightMouseUp, .rightMouseDragged: .right
@@ -241,25 +333,85 @@ final class MacroRecorder {
         }
     }
 
-    private func clickActionType(for button: MacroMouseButton) -> MacroActionType {
-        switch button { case .left: .leftClick; case .right: .rightClick; case .middle: .middleClick }
-    }
-
-    private func modifierFlag(for keyCode: UInt16) -> NSEvent.ModifierFlags? {
+    private func modifierFlag(for keyCode: UInt16) -> CGEventFlags? {
         switch keyCode {
-        case 54, 55: .command
-        case 56, 60: .shift
-        case 58, 61: .option
-        case 59, 62: .control
-        case 57: .capsLock
-        case 63: .function
+        case 54, 55: .maskCommand
+        case 56, 60: .maskShift
+        case 58, 61: .maskAlternate
+        case 59, 62: .maskControl
+        case 57: .maskAlphaShift
+        case 63: .maskSecondaryFn
         default: nil
         }
     }
 
-    private func recordedCoordinates(for point: CGPoint) -> CGPoint {
-        guard let target else { return point }
-        return CGPoint(x: point.x - target.bounds.minX, y: point.y - target.bounds.minY)
+    private func recordedCoordinates(for point: CGPoint, currentWindow: TargetWindow?) -> CGPoint {
+        guard let target, let currentWindow else { return point }
+        // Store in the initial window's coordinate scale, even if its frame
+        // changes during recording. The macro keeps that initial frame size.
+        let frame = currentWindow.bounds
+        return CGPoint(
+            x: (point.x - frame.minX) * target.bounds.width / frame.width,
+            y: (point.y - frame.minY) * target.bounds.height / frame.height
+        )
+    }
+
+    private func captureWindow(for type: CGEventType, at time: TimeInterval) -> TargetWindow? {
+        guard let target else { return nil }
+        let interval: TimeInterval = switch type {
+        case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged: 0.03
+        case .keyDown, .keyUp, .flagsChanged: 0.1
+        default: 0
+        }
+        if interval == 0 || lastCaptureWindowRefreshAt == 0 || time - lastCaptureWindowRefreshAt >= interval {
+            currentCaptureWindow = targetManager.currentWindow(matching: target)
+            lastCaptureWindowRefreshAt = time
+        }
+        return currentCaptureWindow
+    }
+
+    private func shouldCapture(_ event: CGEvent, destinationPID: pid_t, point: CGPoint, at time: TimeInterval,
+                               currentWindow: TargetWindow?) -> Bool {
+        guard let target else { return true } // No selected target retains global recording.
+        guard let currentWindow else { return false }
+        switch event.type {
+        case .keyDown, .keyUp, .flagsChanged:
+            let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            if event.type == .keyUp && recordedHeldKeys.contains(keyCode) { return true }
+            if event.type == .flagsChanged && heldModifierCodes.contains(keyCode) { return true }
+            return destinationPID > 0
+                ? destinationPID == target.processIdentifier
+                : NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
+        case .leftMouseUp, .rightMouseUp, .otherMouseUp,
+             .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            guard let button = mouseButton(for: event) else { return false }
+            return recordedHeldButtons.contains(button)
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel:
+            guard currentWindow.bounds.contains(point) else { return false }
+            if destinationPID > 0 && destinationPID != target.processIdentifier {
+                ClickDiagnostics.log("stage=record_hit result=otherPID type=\(event.type.rawValue) destinationPID=\(destinationPID) selectedPID=\(target.processIdentifier)")
+                return false
+            }
+            let hitWindow = targetManager.window(at: point)
+            if event.type != .scrollWheel {
+                ClickDiagnostics.log("stage=record_hit type=\(event.type.rawValue) hitPID=\(hitWindow?.processIdentifier ?? -1) hitWindow=\(hitWindow?.id ?? -1) hitFrame=\(String(describing: hitWindow?.bounds)) selectedWindow=\(target.id)")
+            }
+            if let window = hitWindow {
+                return window.id == target.id && window.processIdentifier == target.processIdentifier
+            }
+            return destinationPID == target.processIdentifier
+        case .mouseMoved:
+            guard currentWindow.bounds.contains(point),
+                  NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier else { return false }
+            // Keep window hit testing off the hot path of a 120 Hz event tap.
+            if time - lastHoverCheckAt >= 0.03 || lastHoverCheckAt == 0 {
+                lastHoverWindowID = targetManager.window(at: point)?.id
+                lastHoverCheckAt = time
+            }
+            return lastHoverWindowID == target.id
+        default:
+            return false
+        }
     }
 }
 

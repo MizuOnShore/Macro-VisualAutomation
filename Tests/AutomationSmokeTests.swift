@@ -9,6 +9,7 @@ struct AutomationSmokeTests {
         try testSectionPersistenceAndMovement()
         try testEditingAndUndo()
         try testValidation()
+        try testAutomationTargetSelection()
         try await testSequentialExecution()
         try await testRepeatTargetExecution()
         try await testLoopBackSharedTargetExecution()
@@ -23,13 +24,13 @@ struct AutomationSmokeTests {
         let automation = AutomationDefinition.blank(name: "Sections")
         let stop = automation.nodes.first { $0.kind == .stop }!
         var withSection = automation
-        let section = AutomationSection(title: "Recovery", frame: WorkflowFrame(x: 250, y: 250, width: 300, height: 180))
+        let section = AutomationSection(title: "Recovery", frame: WorkflowFrame(x: 250, y: 250, width: 300, height: 180), nodeIDs: [stop.id])
         withSection.sections = [section]
         let (store, storageDirectory) = try makeStore(with: withSection)
         defer { try? FileManager.default.removeItem(at: storageDirectory) }
 
         store.beginContinuousEdit()
-        store.moveSection(section.id, by: CGSize(width: 40, height: 25), containing: [stop.id])
+        store.moveSection(section.id, by: CGSize(width: 40, height: 25))
         store.endContinuousEdit()
         let moved = store.selectedAutomation!
         try expect(moved.sections[0].frame.x == 290 && moved.sections[0].frame.y == 275, "Section frame did not move")
@@ -213,6 +214,30 @@ struct AutomationSmokeTests {
             store.executionHistory.allSatisfy { $0.status == .completed && $0.finishedAt != nil },
             "Completed execution history contained an unfinished node"
         )
+    }
+
+    private static func testAutomationTargetSelection() throws {
+        let game = TargetWindow(id: 12524, applicationName: "Game", windowTitle: "Game",
+                                processIdentifier: 49100, bundleIdentifier: "game.bundle",
+                                bounds: CGRect(x: 0, y: 30, width: 1920, height: 1050))
+        let auxiliary = TargetWindow(id: 12525, applicationName: "Game", windowTitle: "Game",
+                                     processIdentifier: 49100, bundleIdentifier: "game.bundle",
+                                     bounds: CGRect(x: 0, y: 580, width: 500, height: 500))
+        let windows = [auxiliary, game]
+        let available: (TargetWindow) -> Bool = { $0.id == game.id }
+
+        try expect(AutomationTargetSelector.select(from: windows, selected: game,
+                                                   bundleIdentifier: "game.bundle", isAvailable: available)?.id == game.id,
+                   "Automation chose the first same-bundle window instead of the selected game window")
+        try expect(AutomationTargetSelector.select(from: windows, selected: nil,
+                                                   bundleIdentifier: "game.bundle", isAvailable: available)?.id == game.id,
+                   "Automation did not choose the only available game window")
+        try expect(AutomationTargetSelector.select(from: windows, selected: auxiliary,
+                                                   bundleIdentifier: "game.bundle", isAvailable: available) == nil,
+                   "Automation silently switched away from an unavailable selected window")
+        try expect(AutomationTargetSelector.select(from: windows, selected: nil,
+                                                   bundleIdentifier: "game.bundle", isAvailable: { _ in true }) == nil,
+                   "Automation guessed between two available game windows")
     }
 
     private static func testPauseAndStop() async throws {
@@ -444,7 +469,7 @@ struct AutomationSmokeTests {
         backend: AutomationFakeBackend,
         windows: [TargetWindow] = []
     ) -> AutomationEngine {
-        let macroEngine = MacroEngine(isAuthorized: { true }, targetIsRunning: { _ in true })
+        let macroEngine = MacroEngine(isAuthorized: { true }, targetIsRunning: { _ in true }, targetWindowResolver: { $0 })
         return AutomationEngine(
             store: store,
             macroResolver: { id in macro?.id == id ? macro : nil },
@@ -485,7 +510,7 @@ private final class AutomationFakeBackend: InputBackend {
     func mouseDrag(_ button: MacroMouseButton, to point: CGPoint, target: TargetWindow) throws {}
     func mouseDown(_ button: MacroMouseButton, at point: CGPoint, clickCount: Int, target: TargetWindow) throws {}
     func mouseUp(_ button: MacroMouseButton, at point: CGPoint, clickCount: Int, target: TargetWindow) throws {}
-    func scroll(deltaX: Double, deltaY: Double, at point: CGPoint, target: TargetWindow) throws {}
+    func scroll(deltaX: Double, deltaY: Double, units: MacroScrollUnit, at point: CGPoint, target: TargetWindow) throws {}
 }
 
 private extension TargetWindow {

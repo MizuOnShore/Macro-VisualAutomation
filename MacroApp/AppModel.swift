@@ -32,15 +32,16 @@ final class AppModel: ObservableObject {
     private let targetManager: any TargetDiscovering
     private let storage: any MacroStoring
     private let engine = MacroEngine()
+    private let simpleEngine = SimplePlaybackEngine()
     private let recorder = MacroRecorder()
     private let emergencyMonitor = EmergencyStopMonitor()
     private let hotkeyManager = GlobalHotkeyManager()
     private let backgroundInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .background)
     private let compatibilityInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .compatibility)
-    private let exactScreenInputBackend: any InputBackend = TargetedCGEventBackend(mousePlaybackMode: .exactScreen)
     private let hotkeyDefaultsKey = "GlobalHotkeyPreferences"
     private var persistenceTask: Task<Void, Never>?
     private var playbackPreparationID: UUID?
+    private var targetNeedsReselection = false
     private var recordingCountdownTimer: DispatchSourceTimer?
     private var automationObservation: AnyCancellable?
     private lazy var automationEngine = AutomationEngine(
@@ -107,7 +108,6 @@ final class AppModel: ObservableObject {
         switch mode {
         case .background: backgroundInputBackend
         case .compatibility: compatibilityInputBackend
-        case .exactScreen: exactScreenInputBackend
         }
     }
 
@@ -150,6 +150,9 @@ final class AppModel: ObservableObject {
         engine.onStateChange = { [weak self] state in self?.handleEngineState(state) }
         engine.onLog = { [weak self] message, level in self?.log(message, level: level) }
         engine.onProgress = { [weak self] progress in self?.playbackProgress = progress }
+        simpleEngine.onStateChange = { [weak self] state in self?.handleEngineState(state) }
+        simpleEngine.onLog = { [weak self] message, level in self?.log(message, level: level) }
+        simpleEngine.onProgress = { [weak self] progress in self?.playbackProgress = progress }
         recorder.onActionCountChange = { [weak self] count in
             self?.recordedActionCount = count
         }
@@ -266,22 +269,28 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func refreshTargets() {
+    func refreshTargets(allowAutoReconnect: Bool = true) {
         guard !isRefreshingTargets else { return }
         isRefreshingTargets = true
         defer { isRefreshingTargets = false }
 
         do {
+            let hadSelectedTarget = selectedTarget != nil
             let discovered = try targetManager.discoverWindows()
             availableTargets = discovered
             reconnectSelectedTarget(in: discovered)
-            if selectedTarget == nil { reconnectTargetForSelectedMacro(in: discovered) }
+            if allowAutoReconnect && !hadSelectedTarget && selectedTarget == nil {
+                reconnectTargetForSelectedMacro(in: discovered)
+            }
             targetDiscoveryMessage = discovered.isEmpty
                 ? "No application windows were found. Open the target app and refresh."
                 : "Found \(discovered.count) windows across this Mac. Windows on other Spaces may require Compatibility playback."
             log(targetDiscoveryMessage)
         } catch {
             availableTargets = []
+            if selectedTarget != nil && runState != .idle { engine.stop(); simpleEngine.stop() }
+            if selectedTarget != nil { targetNeedsReselection = true }
+            selectedTarget = nil
             targetDiscoveryMessage = error.localizedDescription
             log("Window discovery failed: \(error.localizedDescription)", level: .error)
         }
@@ -290,6 +299,7 @@ final class AppModel: ObservableObject {
     func selectTarget(id: TargetWindow.ID?) {
         guard let id, let target = availableTargets.first(where: { $0.id == id }) else { return }
         selectedTarget = target
+        targetNeedsReselection = false
         if let index = selectedMacroIndex { macros[index].targetBundleIdentifier = target.bundleIdentifier }
         let mode = selectedMacro?.mousePlaybackMode ?? .background
         diagnosticMessage = "Ready to attempt input with \(inputBackend(for: mode).displayName)."
@@ -299,6 +309,7 @@ final class AppModel: ObservableObject {
     func clearTarget() {
         guard let selectedTarget else { return }
         self.selectedTarget = nil
+        targetNeedsReselection = false
         diagnosticMessage = "Select a target, then send a test input."
         log("Target cleared: \(selectedTarget.applicationName)")
     }
@@ -325,7 +336,6 @@ final class AppModel: ObservableObject {
         // common source of offset or scaled mouse playback after a window has
         // moved, resized, or been recreated.
         refreshTargets()
-        if selectedTarget == nil { reconnectTargetForSelectedMacro(in: availableTargets) }
         guard let target = selectedTarget else {
             log("Cannot start: select a target window", level: .error)
             alertMessage = "No target window is selected. Open Target, click Refresh, highlight the target, and click Select Highlighted Window."
@@ -336,14 +346,15 @@ final class AppModel: ObservableObject {
 
         let mode = macro.mousePlaybackMode
         let backend = inputBackend(for: mode)
+        let playbackEngine: any MacroPlaybackControlling = SimplePlaybackEngine.useLegacyFallback ? engine : simpleEngine
         if mode == .background {
-            engine.start(macro: macro, target: target, backend: backend)
+            playbackEngine.start(macro: macro, target: target, backend: backend)
             return
         }
 
         guard permissionManager.eventPostingGranted else {
-            log("Cannot start (mode.title) playback: synthetic event permission is not granted", level: .error)
-            alertMessage = "(mode.title) mouse playback needs macOS synthetic-event permission. Open Macro → Settings → Permissions, request Accessibility access again, then relaunch Macro."
+            log("Cannot start \(mode.title) playback: synthetic event permission is not granted", level: .error)
+            alertMessage = "\(mode.title) mouse playback needs macOS synthetic-event permission. Open Macro → Settings → Permissions, request Accessibility access again, then relaunch Macro."
             return
         }
 
@@ -359,7 +370,7 @@ final class AppModel: ObservableObject {
                 try await CompatibilityPlaybackPreparation.activate(target)
                 guard self.playbackPreparationID == preparationID else { return }
                 self.playbackPreparationID = nil
-                self.engine.start(macro: macro, target: target, backend: backend)
+                playbackEngine.start(macro: macro, target: target, backend: backend)
             } catch is CancellationError {
                 guard self.playbackPreparationID == preparationID else { return }
                 self.playbackPreparationID = nil
@@ -403,6 +414,8 @@ final class AppModel: ObservableObject {
     func togglePause() {
         if automationStore.runState != .idle {
             automationEngine.togglePause()
+        } else if simpleEngine.state != .idle {
+            simpleEngine.togglePause()
         } else {
             engine.togglePause()
         }
@@ -414,6 +427,7 @@ final class AppModel: ObservableObject {
         if recording { finishRecording() }
         automationEngine.stop()
         engine.stop()
+        simpleEngine.stop()
         activity = .idle
         playbackProgress = nil
     }
@@ -425,6 +439,7 @@ final class AppModel: ObservableObject {
         cancelRecordingCountdown()
         automationEngine.stop()
         engine.stop()
+        simpleEngine.stop()
         playbackProgress = nil
         if shouldFinishRecording {
             finishRecording()
@@ -475,7 +490,7 @@ final class AppModel: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                if mode == .compatibility {
+                if mode != .background {
                     guard self.permissionManager.eventPostingGranted else {
                         throw InputBackendError.eventPostingRequired
                     }
@@ -519,6 +534,7 @@ final class AppModel: ObservableObject {
         cancelRecordingCountdown()
         automationEngine.stop()
         engine.stop()
+        simpleEngine.stop()
         if recording { finishRecording() }
         activity = .idle
         emergencyMonitor.stop()
@@ -586,6 +602,11 @@ final class AppModel: ObservableObject {
         activity = .idle
 
         do {
+            let hadSelectedTarget = selectedTarget != nil
+            refreshTargets(allowAutoReconnect: false)
+            if hadSelectedTarget && selectedTarget == nil {
+                throw InputBackendError.targetWindowUnavailable
+            }
             try recorder.start(target: selectedTarget, excluding: hotkeys.all)
             recordingStartedAt = .now
             activity = .recording
@@ -601,19 +622,20 @@ final class AppModel: ObservableObject {
     private func finishRecording() {
         activity = .idle
         recordingStartedAt = nil
+        let recordedTarget = recorder.recordedTarget
         let actions = recorder.stop()
 
         let timestamp = Date.now.formatted(date: .abbreviated, time: .standard)
         let mode = selectedMacro?.mousePlaybackMode ?? .background
         let macro = MacroDefinition(
             name: "Recording \(timestamp)",
-            targetBundleIdentifier: selectedTarget?.bundleIdentifier,
+            targetBundleIdentifier: recordedTarget?.bundleIdentifier,
             actions: actions,
             mousePlaybackMode: mode,
-            recordedWindowWidth: selectedTarget.map { Double($0.bounds.width) },
-            recordedWindowHeight: selectedTarget.map { Double($0.bounds.height) },
-            recordedWindowOriginX: selectedTarget.map { Double($0.bounds.minX) },
-            recordedWindowOriginY: selectedTarget.map { Double($0.bounds.minY) }
+            recordedWindowWidth: recordedTarget.map { Double($0.bounds.width) },
+            recordedWindowHeight: recordedTarget.map { Double($0.bounds.height) },
+            recordedWindowOriginX: recordedTarget.map { Double($0.bounds.minX) },
+            recordedWindowOriginY: recordedTarget.map { Double($0.bounds.minY) }
         )
         macros.append(macro)
         selectedMacroID = macro.id
@@ -672,13 +694,18 @@ final class AppModel: ObservableObject {
     }
 
     private func automationTarget(for node: AutomationNode, macro: MacroDefinition) -> TargetWindow? {
-        if availableTargets.isEmpty { refreshTargets() }
+        refreshTargets(allowAutoReconnect: false)
         let bundleIdentifier = node.targetBundleIdentifier ?? macro.targetBundleIdentifier
-        if let bundleIdentifier,
-           let match = availableTargets.first(where: { $0.bundleIdentifier == bundleIdentifier }) {
-            return match
+        let target = AutomationTargetSelector.select(
+            from: availableTargets,
+            selected: selectedTarget,
+            bundleIdentifier: bundleIdentifier,
+            isAvailable: { TargetManager().currentWindow(matching: $0) != nil }
+        )
+        if target == nil {
+            log("No exact target window is available for \(macro.name). Select its window in Target and try again.", level: .warning)
         }
-        return selectedTarget
+        return target
     }
 
     func automationNodeTitle(_ node: AutomationNode) -> String {
@@ -698,30 +725,20 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let replacement = windows.first {
-            guard let oldBundleID = previous.bundleIdentifier else { return false }
-            return $0.bundleIdentifier == oldBundleID && $0.windowTitle == previous.windowTitle
-        } ?? windows.first {
-            guard let oldBundleID = previous.bundleIdentifier else { return false }
-            return $0.bundleIdentifier == oldBundleID
-        }
-
-        if let replacement {
-            selectedTarget = replacement
-            log("Reconnected target after restart: \(replacement.applicationName)")
-        } else {
-            selectedTarget = nil
-            if runState != .idle { engine.stop() }
-            log("Selected target is no longer available: \(previous.applicationName)", level: .warning)
-        }
+        selectedTarget = nil
+        targetNeedsReselection = true
+        if runState != .idle { engine.stop(); simpleEngine.stop() }
+        log("Selected window is no longer available: \(previous.applicationName). Select the intended window again.", level: .warning)
     }
 
     private func reconnectTargetForSelectedMacro(in windows: [TargetWindow]) {
         guard
             selectedTarget == nil,
-            let bundleIdentifier = selectedMacro?.targetBundleIdentifier,
-            let replacement = windows.first(where: { $0.bundleIdentifier == bundleIdentifier })
+            !targetNeedsReselection,
+            let bundleIdentifier = selectedMacro?.targetBundleIdentifier
         else { return }
+        let matches = windows.filter { $0.bundleIdentifier == bundleIdentifier }
+        guard matches.count == 1, let replacement = matches.first else { return }
 
         selectedTarget = replacement
         log("Automatically reconnected target: \(replacement.applicationName)")

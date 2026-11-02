@@ -15,7 +15,7 @@ final class AutomationEngine {
     private let windowResolver: WindowResolver
     private let permissionCheck: () -> Bool
     private let logger: (String, LogEntry.Level) -> Void
-    private let macroEngine: MacroEngine
+    private let macroEngine: any MacroPlaybackControlling
     private var task: Task<Void, Never>?
     private var macroContinuation: CheckedContinuation<MacroRunOutcome, Never>?
 
@@ -27,7 +27,7 @@ final class AutomationEngine {
         windowResolver: @escaping WindowResolver = { [] },
         permissionCheck: @escaping () -> Bool,
         logger: @escaping (String, LogEntry.Level) -> Void,
-        macroEngine: MacroEngine? = nil
+        macroEngine: (any MacroPlaybackControlling)? = nil
     ) {
         self.store = store
         self.macroResolver = macroResolver
@@ -36,7 +36,7 @@ final class AutomationEngine {
         self.windowResolver = windowResolver
         self.permissionCheck = permissionCheck
         self.logger = logger
-        self.macroEngine = macroEngine ?? MacroEngine()
+        self.macroEngine = macroEngine ?? (SimplePlaybackEngine.useLegacyFallback ? MacroEngine() : SimplePlaybackEngine())
 
         self.macroEngine.onLog = logger
         self.macroEngine.onFinish = { [weak self] outcome in

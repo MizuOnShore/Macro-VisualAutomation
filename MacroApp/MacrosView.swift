@@ -710,13 +710,11 @@ private struct MacroHeader: View {
             Image(systemName: "computermouse")
                 .foregroundStyle(.secondary)
             Picker("Mouse playback", selection: $macro.mousePlaybackMode) {
-                ForEach(MousePlaybackMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
+                ForEach(MousePlaybackMode.allCases) { mode in Text(mode.title).tag(mode) }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 280)
+            .frame(width: 230)
             .disabled(model.runState != .idle || model.recording)
             .help(macro.mousePlaybackMode.detail)
         }

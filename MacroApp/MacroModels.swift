@@ -80,6 +80,10 @@ enum MacroMouseButton: String, Codable, CaseIterable, Identifiable, Hashable {
     var title: String { rawValue.capitalized }
 }
 
+enum MacroScrollUnit: String, Codable, Equatable {
+    case pixel, line
+}
+
 struct MacroAction: Identifiable, Codable, Equatable {
     var id = UUID()
     var type: MacroActionType
@@ -89,16 +93,20 @@ struct MacroAction: Identifiable, Codable, Equatable {
     var delay: Double = 0
     var x: Double?
     var y: Double?
+    var recordedScreenX: Double?
+    var recordedScreenY: Double?
     var mouseButton: MacroMouseButton = .left
     var clickCount: Int = 1
     var scrollDeltaX: Double = 0
     var scrollDeltaY: Double = 0
+    var scrollUnit: MacroScrollUnit = .pixel
     var usesWindowCoordinates = true
     var isEnabled = true
+    var isKeyRepeat = false
 
     private enum CodingKeys: String, CodingKey {
-        case id, type, label, key, duration, delay, x, y, mouseButton, clickCount
-        case scrollDeltaX, scrollDeltaY, usesWindowCoordinates, isEnabled
+        case id, type, label, key, duration, delay, x, y, recordedScreenX, recordedScreenY, mouseButton, clickCount
+        case scrollDeltaX, scrollDeltaY, scrollUnit, usesWindowCoordinates, isEnabled, isKeyRepeat
     }
 
     init(
@@ -110,12 +118,16 @@ struct MacroAction: Identifiable, Codable, Equatable {
         delay: Double = 0,
         x: Double? = nil,
         y: Double? = nil,
+        recordedScreenX: Double? = nil,
+        recordedScreenY: Double? = nil,
         mouseButton: MacroMouseButton = .left,
         clickCount: Int = 1,
         scrollDeltaX: Double = 0,
         scrollDeltaY: Double = 0,
+        scrollUnit: MacroScrollUnit = .pixel,
         usesWindowCoordinates: Bool = true,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        isKeyRepeat: Bool = false
     ) {
         self.id = id
         self.type = type
@@ -125,12 +137,16 @@ struct MacroAction: Identifiable, Codable, Equatable {
         self.delay = delay
         self.x = x
         self.y = y
+        self.recordedScreenX = recordedScreenX
+        self.recordedScreenY = recordedScreenY
         self.mouseButton = mouseButton
         self.clickCount = clickCount
         self.scrollDeltaX = scrollDeltaX
         self.scrollDeltaY = scrollDeltaY
+        self.scrollUnit = scrollUnit
         self.usesWindowCoordinates = usesWindowCoordinates
         self.isEnabled = isEnabled
+        self.isKeyRepeat = isKeyRepeat
     }
 
     init(from decoder: Decoder) throws {
@@ -143,12 +159,16 @@ struct MacroAction: Identifiable, Codable, Equatable {
         delay = try values.decodeIfPresent(Double.self, forKey: .delay) ?? 0
         x = try values.decodeIfPresent(Double.self, forKey: .x)
         y = try values.decodeIfPresent(Double.self, forKey: .y)
+        recordedScreenX = try values.decodeIfPresent(Double.self, forKey: .recordedScreenX)
+        recordedScreenY = try values.decodeIfPresent(Double.self, forKey: .recordedScreenY)
         mouseButton = try values.decodeIfPresent(MacroMouseButton.self, forKey: .mouseButton) ?? .left
         clickCount = max(1, try values.decodeIfPresent(Int.self, forKey: .clickCount) ?? 1)
         scrollDeltaX = try values.decodeIfPresent(Double.self, forKey: .scrollDeltaX) ?? 0
         scrollDeltaY = try values.decodeIfPresent(Double.self, forKey: .scrollDeltaY) ?? 0
+        scrollUnit = try values.decodeIfPresent(MacroScrollUnit.self, forKey: .scrollUnit) ?? .pixel
         usesWindowCoordinates = try values.decodeIfPresent(Bool.self, forKey: .usesWindowCoordinates) ?? true
         isEnabled = try values.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+        isKeyRepeat = try values.decodeIfPresent(Bool.self, forKey: .isKeyRepeat) ?? false
     }
 
     var summary: String {
@@ -322,26 +342,41 @@ struct PlaybackProgress: Equatable {
 enum MousePlaybackMode: String, Codable, CaseIterable, Identifiable {
     case background
     case compatibility
-    case exactScreen
 
     var id: Self { self }
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        if value == "exactScreen" {
+            self = .compatibility
+        } else if let mode = Self(rawValue: value) {
+            self = mode
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: try decoder.singleValueContainer(),
+                debugDescription: "Unknown mouse playback mode: \(value)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 
     var title: String {
         switch self {
         case .background: "Background"
         case .compatibility: "Compatibility"
-        case .exactScreen: "Exact Screen"
         }
     }
 
     var detail: String {
         switch self {
         case .background:
-            "Keeps your cursor free. Some games, including Roblox, may ignore mouse actions."
+            "Does not switch apps or move your cursor. Some games may ignore this input."
         case .compatibility:
-            "Activates the target and uses the system cursor so game mouse actions can work."
-        case .exactScreen:
-            "Replays the original screen coordinates. Keep the target visible and in the same position."
+            "Brings the target forward and uses your cursor. Mouse positions follow its window."
         }
     }
 }

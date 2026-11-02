@@ -77,11 +77,11 @@ The library autosaves to `~/Library/Application Support/Macro/Macros.json`. The 
 
 ## Recording
 
-Open **Recorder** after granting Input Monitoring. A three-second countdown appears in the main Recorder UI, giving you time to switch to the target. Stop or cancel it from the Recorder page or with the global Stop hotkey (`F7` by default). Recording uses a passive global AppKit monitor, so normal input continues to reach other applications.
+Open **Recorder** after granting Input Monitoring. A three-second countdown appears in the main Recorder UI, giving you time to switch to the target. Stop or cancel it from the Recorder page or with the global Stop hotkey (`F7` by default). Recording uses a passive Quartz event tap, so normal input continues to reach other applications.
 
 Each completed recording creates a new timestamped macro in the library and selects it automatically. Recording again does not append to or overwrite the previous macro.
 
-Before playback, choose a mouse mode beside the loop controls. The choice is saved separately for each macro. **Background** keeps the physical cursor free and sends mouse events directly to the selected process, though games such as Roblox may ignore them. **Compatibility** activates the target and uses the macOS system cursor so game mouse actions can work.
+Before playback, choose **Background** or **Compatibility** beside the loop controls. The choice is saved separately for each macro. Background does not switch apps or move your cursor, though some games may ignore the input. Compatibility brings the target forward, uses your cursor, and adjusts mouse positions when the window moves or resizes. Older recordings saved as Exact Screen now play in Compatibility mode.
 
 The recorder automatically captures:
 
@@ -91,7 +91,9 @@ The recorder automatically captures:
 - Mouse wheel and trackpad scrolling
 - Timing between every action
 
-Captured actions are saved into a new timestamped macro. Pointer movement is throttled and rapid scroll events are combined to avoid excessive steps. Window-relative mouse coordinates are scaled when the target window changes size. Manual **Add Action** is only needed when you want to build or adjust a sequence by hand.
+Captured actions are saved into a new timestamped macro. Pointer movement is sampled at up to 120 Hz; scroll events retain their timing and wheel or pixel units. Window-relative mouse coordinates follow the selected window as it moves or resizes during playback. Playback stops if that exact window disappears. Manual **Add Action** is only needed when you want to build or adjust a sequence by hand.
+
+Playback uses a dedicated serial worker with the recording's event order and timing. A late event does not extend later scheduled times, so a heavily delayed press can have a shorter hold than recorded. Pause shifts the remaining timeline by the time paused. For comparison or rollback, launch Macro with `MACRO_USE_LEGACY_PLAYBACK=1` to use the previous playback engine.
 
 ## Automation workflows
 

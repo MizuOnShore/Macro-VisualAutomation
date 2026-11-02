@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import CoreGraphics
 
 enum HotkeyAction: UInt32, CaseIterable, Identifiable {
     case record = 1
@@ -50,6 +51,18 @@ struct HotkeyShortcut: Codable, Equatable, Hashable {
         // keyboard-only NSEvent properties.
         guard event.type == .keyDown || event.type == .keyUp else { return false }
         return UInt32(event.keyCode) == keyCode && Self.carbonModifiers(from: event.modifierFlags) == modifiers
+    }
+
+    func matches(_ event: CGEvent) -> Bool {
+        guard event.type == .keyDown || event.type == .keyUp,
+              UInt32(event.getIntegerValueField(.keyboardEventKeycode)) == keyCode else { return false }
+        let flags = event.flags
+        var eventModifiers: UInt32 = 0
+        if flags.contains(.maskControl) { eventModifiers |= UInt32(controlKey) }
+        if flags.contains(.maskAlternate) { eventModifiers |= UInt32(optionKey) }
+        if flags.contains(.maskShift) { eventModifiers |= UInt32(shiftKey) }
+        if flags.contains(.maskCommand) { eventModifiers |= UInt32(cmdKey) }
+        return eventModifiers == modifiers
     }
 
     static func from(_ event: NSEvent) -> HotkeyShortcut? {
@@ -253,4 +266,3 @@ final class HotkeyCaptureSession: ObservableObject {
         if let monitor { NSEvent.removeMonitor(monitor) }
     }
 }
-    

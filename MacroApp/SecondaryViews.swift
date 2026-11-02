@@ -732,7 +732,7 @@ private struct PermissionsSettingsView: View {
                     title: "Accessibility & Event Posting",
                     symbol: "accessibility",
                     granted: permissions.accessibilityGranted && permissions.eventPostingGranted,
-                    requirement: "Required for automation and Compatibility mouse playback",
+                    requirement: "Required for automation and Compatibility playback",
                     explanation: "Allows Macro to use approved accessibility APIs and post system mouse events. Both checks must be granted. Macro never bypasses these macOS controls.",
                     request: permissions.requestAccessibility,
                     openSettings: permissions.openAccessibilitySettings

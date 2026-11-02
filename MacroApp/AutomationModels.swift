@@ -96,15 +96,34 @@ enum AutomationConditionKind: String, Codable, CaseIterable, Identifiable {
 }
 
 enum MacroPlaybackOverride: String, Codable, CaseIterable, Identifiable {
-    case useMacroSetting, background, compatibility, exactScreen
+    case useMacroSetting, background, compatibility
 
     var id: Self { self }
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        if value == "exactScreen" {
+            self = .compatibility
+        } else if let mode = Self(rawValue: value) {
+            self = mode
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: try decoder.singleValueContainer(),
+                debugDescription: "Unknown playback override: \(value)"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
     var title: String {
         switch self {
         case .useMacroSetting: "Use macro setting"
         case .background: "Background"
         case .compatibility: "Compatibility"
-        case .exactScreen: "Exact Screen"
         }
     }
 
@@ -113,7 +132,6 @@ enum MacroPlaybackOverride: String, Codable, CaseIterable, Identifiable {
         case .useMacroSetting: fallback
         case .background: .background
         case .compatibility: .compatibility
-        case .exactScreen: .exactScreen
         }
     }
 }

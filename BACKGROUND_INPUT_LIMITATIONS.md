@@ -4,21 +4,21 @@
 
 macOS has public APIs that can create synthetic events and post them to a process, but it does not provide a general, guaranteed “control any background window” facility. Event creation/posting success is distinct from application receipt, and receipt is distinct from the application acting on the event.
 
-Macro therefore labels its backend **Targeted CGEvent (Experimental)** and never reports successful receipt without evidence from the target.
+Macro offers **Background** posting to the selected process and **Compatibility** posting through the system HID stream. Neither mode reports successful receipt without evidence from the target.
 
 ## APIs investigated
 
 ### `CGWindowListCopyWindowInfo`
 
-Used for read-only discovery. Macro records the Window Server ID, owner PID, bounds, application name, and bundle identifier without activating the application. The current list intentionally includes normal, visible, on-screen windows. macOS or the application may hide the title, which is displayed as “Untitled Window.”
+Used for read-only discovery. Macro records the Window Server ID, owner PID, bounds, application name, and bundle identifier without activating the application. Discovery includes normal windows across Spaces. macOS or the application may hide the title, which is displayed as “Untitled Window.”
 
 ### Global `CGEvent.post(tap:)`
 
-Rejected as Macro’s primary backend. A global event is dispatched through the system event stream and normally follows the current input destination. Global mouse events can affect the real pointer. That does not meet the isolation requirement.
+Compatibility mode posts through the system HID stream after activating the selected target window. A global event normally follows the current input destination, and mouse events can affect the real pointer.
 
 ### `CGEvent.postToPid`
 
-Implemented as the experimental backend. Keyboard and mouse Quartz events are constructed from a private event source and posted to the selected PID. Macro does not activate the application and does not intentionally post these events to the global HID stream.
+Implemented for Background mode. Keyboard and mouse Quartz events are constructed from a private event source and posted to the selected PID. Background mode does not activate the application or intentionally post these events to the global HID stream.
 
 Limitations:
 
@@ -35,19 +35,19 @@ Apple documents this as posting keyboard events to an application Accessibility 
 
 `AXIsProcessTrusted` / `AXIsProcessTrustedWithOptions` manage Accessibility authorization. `CGPreflightListenEventAccess` / `CGRequestListenEventAccess` manage permission to observe global input. macOS controls both decisions; Macro does not bypass them.
 
-Accessibility authorization is checked before every scheduled action so revocation stops execution. Input Monitoring is used for passive recording and the global Escape emergency stop.
+The simplified playback worker checks Accessibility authorization and the selected window periodically, about every 250 ms while events are dispatched. Input Monitoring is used for passive recording and the global Escape emergency stop.
 
 ### Event monitors
 
-Recording uses `NSEvent.addGlobalMonitorForEvents`. It observes input without consuming or modifying it, so input continues to the application the user is actively using. A local monitor covers Escape while Macro is active. A global Escape monitor is available when Input Monitoring is authorized.
+Recording uses a listen-only Quartz event tap. It observes input without consuming or modifying it, so input continues to the application the user is actively using. A local monitor covers Escape while Macro is active. A global Escape monitor is available when Input Monitoring is authorized.
 
 ## Keyboard isolation
 
-Macro posts keyboard events only to the selected PID. It does not activate the target or globally synthesize keystrokes. This preserves the user’s normal typing path in principle, but target acceptance is application-dependent. Standard virtual key codes are currently based on a US layout.
+Background mode posts keyboard events to the selected PID. Compatibility mode posts them through the system HID stream after activating the target. Target acceptance is application-dependent. Standard virtual key codes are currently based on a US layout.
 
 ## Mouse isolation
 
-Macro does not call cursor-warping APIs and does not post mouse events globally. It posts a mouse event with screen or target-window-relative coordinates to the selected PID. The physical pointer should remain under the user’s control, but acceptance and interpretation of the synthetic coordinates are target-dependent and must be observed by the user.
+Macro does not call cursor-warping APIs. Background mode posts mouse events with screen or target-window-relative coordinates to the selected PID; Compatibility mode posts through the system HID stream and can move the pointer. Acceptance and interpretation of synthetic coordinates are target-dependent and must be observed by the user.
 
 ## Roblox findings
 
@@ -61,7 +61,7 @@ Roblox may use focused HID/game input and ignore Quartz events posted to its bac
 
 - Escape cancels the schedule and releases held automation inputs.
 - Stop, errors, permission revocation, target termination, and app termination also release held inputs.
-- Timing uses cancellable asynchronous sleeps in 20 ms slices; the UI thread is never blocked.
+- The simplified engine uses a dedicated serial playback worker with cancellable waits; the UI thread does not dispatch individual events.
 - Pause stops timing progression rather than merely delaying the next action.
 
 ## What cannot be claimed
